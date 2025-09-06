@@ -11,7 +11,7 @@ cd ~/my-kernel/buildenv && docker run --rm -it -v ~/my-kernel:/root/env my-kerne
 ```
 
 
-> In the ocntainer run the build command.
+> In the container run the build command.
 ```bash
 make build-x86_64
 ```
