@@ -1,3 +1,4 @@
+section .note.GNU-stack noalloc noexec nowrite progbits
 global start
 extern long_mode_start
 

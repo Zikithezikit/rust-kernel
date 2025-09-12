@@ -15,3 +15,5 @@ header_start:
     dd 8
 
 header_end:
+
+section .note.GNU-stack noalloc noexec nowrite progbits
