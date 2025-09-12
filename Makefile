@@ -1,3 +1,6 @@
+# Alias for build-x86_64
+.PHONY: build
+build: build-x86_64
 
 # Directories
 ASM_SRC_DIR := src/implementation/x86_64/boot
@@ -5,8 +8,10 @@ ASM_SRCS := $(wildcard $(ASM_SRC_DIR)/*.asm)
 ASM_OBJS := $(patsubst $(ASM_SRC_DIR)/%.asm, build/x86_64/%.o, $(ASM_SRCS))
 
 
-# Only compile main.rs, which includes other modules
+
+# Rebuild main.o if any Rust file in the kernel directory or subdirectories changes
 RUST_MAIN := src/implementation/kernel/main.rs
+RUST_SRC_ALL := $(shell find src/implementation/kernel -name '*.rs')
 RUST_OBJ := build/kernel/main.o
 
 LINKER_SCRIPT := targets/x86_64/linker.ld
@@ -19,10 +24,10 @@ build/x86_64/%.o: src/implementation/x86_64/boot/%.asm
 	mkdir -p $(dir $@)
 	nasm -f elf64 $< -o $@
 
-# Compile only main.rs to object file
-$(RUST_OBJ): $(RUST_MAIN)
+# Compile main.o if any Rust file changes
+$(RUST_OBJ): $(RUST_SRC_ALL)
 	mkdir -p $(dir $@)
-	rustc --target x86_64-unknown-none -C opt-level=2 --emit=obj -o $@ $<
+	rustc --target x86_64-unknown-none -C opt-level=2 --emit=obj -o $@ $(RUST_MAIN)
 
 # Link all objects into kernel.bin
 $(KERNEL_BIN): $(ASM_OBJS) $(RUST_OBJ) $(LINKER_SCRIPT)

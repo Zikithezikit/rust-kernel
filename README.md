@@ -13,7 +13,7 @@ cd ~/my-kernel/buildenv && docker run --rm -it -v ~/my-kernel:/root/env my-kerne
 
 > In the container run the build command.
 ```bash
-make build-x86_64
+make build
 ```
 
 And that's it now you should have both the `kernel.iso` and the `kernel.bin` files.
