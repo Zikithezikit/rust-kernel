@@ -7,3 +7,10 @@
 /build/
 /dist/
 *.d
+
+
+# Opencode
+.opencode/
+
+# Test outputs
+tests/qemu_output.log
