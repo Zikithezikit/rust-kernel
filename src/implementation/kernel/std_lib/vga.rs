@@ -161,3 +161,27 @@ pub fn fill_screen(color: ColorCodeVga) {
 pub fn clear_screen() {
     fill_screen(ColorCodeVga::Black);
 }
+
+pub fn print(s: &str) {
+    print_string(s);
+}
+
+pub fn println_hex(value: u64) {
+    let digits = b"0123456789abcdef";
+    let mut buf = [0u8; 16];
+    let mut i = 16;
+    let mut v = value;
+    while v != 0 {
+        i -= 1;
+        buf[i] = digits[(v & 0xf) as usize];
+        v >>= 4;
+    }
+    if i == 16 {
+        i -= 1;
+        buf[i] = b'0';
+    }
+    for &byte in &buf[i..] {
+        print_char(byte);
+    }
+    print_char(b'\n');
+}

@@ -1,11 +1,12 @@
 #![allow(dead_code)]
 
 use crate::std_lib::vga;
+use crate::vmm;
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
 use spin::Once;
 use x86_64::instructions::port::Port;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 static KEYBOARD: Mutex<Option<Keyboard<Us104Key, ScancodeSet1>>> = Mutex::new(None);
@@ -51,6 +52,7 @@ pub enum IrqNumber {
 pub fn init_idt() {
     let mut idt = InterruptDescriptorTable::new();
     idt.debug.set_handler_fn(debug_handler);
+    idt.page_fault.set_handler_fn(page_fault_handler);
     idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
     idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
     IDT.call_once(|| idt).load();
@@ -89,6 +91,13 @@ extern "x86-interrupt" fn debug_handler(_stack_frame: InterruptStackFrame) {
     loop {
         x86_64::instructions::hlt();
     }
+}
+
+extern "x86-interrupt" fn page_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: PageFaultErrorCode,
+) {
+    vmm::page_fault_handler(&stack_frame, error_code.bits());
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
