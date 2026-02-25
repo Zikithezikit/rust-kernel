@@ -42,3 +42,17 @@ build-x86_64: $(KERNEL_BIN) iso
 
 clean:
 	rm -rf build dist target
+
+
+
+
+docker-shell:
+	docker run --rm -it -v ~/Projects/rust-kernel/:/root/env rust-kernel-env bash
+
+build-docker:
+	cd ~/Projects/rust-kernel/buildenv && docker build -t rust-kernel-env .
+
+
+run-kernel:
+	qemu-system-x86_64 -cdrom dist/x86_64/kernel.iso
+

@@ -8,7 +8,7 @@ RUN apt-get install -y grub-pc-bin
 
 # Install Rust using rustup (for bare metal kernel dev)
 RUN apt-get update && apt-get install -y curl
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
 # Add the required target for bare metal x86_64
 RUN /root/.cargo/bin/rustup target add x86_64-unknown-none

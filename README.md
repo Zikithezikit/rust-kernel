@@ -2,12 +2,12 @@
 
 > Firstly build the docker image. This might take a while at the first time.
 ```bash
-cd ~/my-kernel/buildenv && docker build -t my-kernel-env .
+cd ~/Projects/rust-kernel/buildenv && docker build -t rust-kernel-env .
 ```
 
 > Now run the container.
 ```bash 
-cd ~/my-kernel/buildenv && docker run --rm -it -v ~/my-kernel:/root/env my-kernel-env bash
+cd ~/Projects/rust-kernel/buildenv && docker run --rm -it -v ~/Projects/rust-kernel/:/root/env rust-kernel-env bash
 ```
 
 
