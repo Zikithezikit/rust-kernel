@@ -47,7 +47,7 @@ iso: copy-kernel
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso $(ISO_DIR)
 
 clean:
-	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash -c "rm -rf build dist target"
+	docker run --rm -i -v $$(pwd)/:/root/env rust-kernel-env bash -c "rm -rf build dist target"
 
 docker-shell:
 	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash
