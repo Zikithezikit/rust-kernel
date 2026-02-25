@@ -1,5 +1,5 @@
 # Build targets
-.PHONY: build build-kernel clean iso copy-kernel docker-shell build-docker run-kernel run-tests
+.PHONY: build build-kernel clean iso copy-kernel docker-shell build-docker run-kernel run-tests run-tests-verbose
 
 # Direct build (requires cross-compiler tools - use inside Docker)
 build-kernel: $(KERNEL_BIN) iso
@@ -47,7 +47,7 @@ iso: copy-kernel
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso $(ISO_DIR)
 
 clean:
-	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash -c "rm -rf build dist target"
+	docker run --rm -i -v $$(pwd)/:/root/env rust-kernel-env bash -c "rm -rf build dist target"
 
 docker-shell:
 	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash
@@ -60,3 +60,6 @@ run-kernel:
 
 run-tests:
 	bash tests/run.sh
+
+run-tests-verbose:
+	VERBOSE=1 bash tests/run.sh
