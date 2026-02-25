@@ -54,12 +54,31 @@ const KERNEL_SIZE: usize = 0x200000;
 ///
 /// Provides structures for parsing the Multiboot2 information structure passed by GRUB.
 pub mod multiboot {
-    /// Tag type identifiers in Multiboot2
+    /// Multiboot2 tag type identifiers
+    ///
+    /// Values from Multiboot2 specification:
+    /// https://www.gnu.org/software/grub/manual/multiboot2/html_node/Boot-information-format.html
     #[derive(Debug, Clone, Copy)]
     #[allow(dead_code)]
     pub enum TagType {
         End = 0,
+        BasicMemoryInfo = 4,
+        BiosBootDevice = 5,
         MemoryMap = 6,
+        VbeInfo = 7,
+        FramebufferInfo = 8,
+        ElfSymbols = 9,
+        ApmTable = 10,
+        Efi32Info = 11,
+        Efi64Info = 12,
+        BootLoaderName = 16,
+        CommandLine = 17,
+        BootModules = 18,
+        EfiMmap = 20,
+        EfiBootServicesNotUsed = 21,
+        Efi32ImageHandle = 22,
+        Efi64ImageHandle = 23,
+        ImageLoadPhysAddrRange = 24,
     }
 
     /// Memory map entry from Multiboot2

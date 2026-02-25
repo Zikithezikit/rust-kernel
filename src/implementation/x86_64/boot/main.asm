@@ -4,6 +4,11 @@ extern long_mode_start
 
 section .text
 bits 32
+
+; Multiboot magic numbers
+MULTIBOOT1_MAGIC equ 0x2BADB002
+MULTIBOOT2_MAGIC equ 0x36D76289
+
 start:
     mov esp, stack_top
 
@@ -28,10 +33,10 @@ start:
 
 
 check_multiboot:
-    ; Accept multiboot1 (0x2BADB002) or multiboot2 (0x36D76289)
-    cmp eax, 0x2BADB002
+    ; Accept multiboot1 (MULTIBOOT1_MAGIC) or multiboot2 (MULTIBOOT2_MAGIC)
+    cmp eax, MULTIBOOT1_MAGIC
     je .multiboot_ok
-    cmp eax, 0x36D76289
+    cmp eax, MULTIBOOT2_MAGIC
     je .multiboot_ok
     jne .no_multiboot
 .multiboot_ok:
