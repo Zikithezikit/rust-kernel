@@ -11,3 +11,6 @@
 
 # Opencode
 .opencode/
+
+# Test outputs
+tests/qemu_output.log

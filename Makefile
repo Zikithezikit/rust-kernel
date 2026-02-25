@@ -1,6 +1,16 @@
-# Alias for build-x86_64
-.PHONY: build
-build: build-x86_64
+# Build targets
+.PHONY: build build-kernel clean iso copy-kernel docker-shell build-docker run-kernel run-tests
+
+# Direct build (requires cross-compiler tools - use inside Docker)
+build-kernel: $(KERNEL_BIN) iso
+
+# Host build - uses Docker to run build-kernel
+build:
+ifneq ($(IS_DOCKER),true)
+	@docker run --rm -i -v $$(pwd)/:/root/env rust-kernel-env bash -c "cd /root/env && IS_DOCKER=true make build-kernel"
+else
+	@$(MAKE) build-kernel
+endif
 
 # Directories
 ASM_SRC_DIR := src/implementation/x86_64/boot
@@ -13,7 +23,6 @@ RUST_LIB     := target/x86_64-unknown-none/release/librust_kernel.a
 LINKER_SCRIPT := targets/x86_64/linker.ld
 KERNEL_BIN    := dist/x86_64/kernel.bin
 ISO_DIR       := targets/x86_64/iso
-GRUB_CFG      := $(ISO_DIR)/boot/grub/grub.cfg
 
 # Compile assembly to object files
 build/x86_64/%.o: src/implementation/x86_64/boot/%.asm
@@ -37,22 +46,17 @@ copy-kernel: $(KERNEL_BIN)
 iso: copy-kernel
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso $(ISO_DIR)
 
-.PHONY: build-x86_64 clean iso copy-kernel
-build-x86_64: $(KERNEL_BIN) iso
-
 clean:
 	rm -rf build dist target
 
-
-
-
 docker-shell:
-	docker run --rm -it -v ~/Projects/rust-kernel/:/root/env rust-kernel-env bash
+	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash
 
 build-docker:
-	cd ~/Projects/rust-kernel/buildenv && docker build -t rust-kernel-env .
-
+	cd buildenv && docker build -t rust-kernel-env .
 
 run-kernel:
 	qemu-system-x86_64 -cdrom dist/x86_64/kernel.iso
 
+run-tests:
+	bash tests/run.sh
