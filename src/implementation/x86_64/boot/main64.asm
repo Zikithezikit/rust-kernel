@@ -4,7 +4,7 @@ extern kernel_main
 section .text
 bits 64
 long_mode_start:
-    ; load null into all data segment registers
+    ; Load null into all segment registers
     mov ax, 0
     mov ss, ax
     mov ds, ax
@@ -12,6 +12,9 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
 
+    ; RDI contains the Multiboot2 info pointer (passed from 32-bit mode)
+    ; Pass it to kernel_main as first argument
+    mov rdi, rdi
 
     call kernel_main
     hlt

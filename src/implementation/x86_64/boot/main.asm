@@ -7,12 +7,18 @@ bits 32
 start:
     mov esp, stack_top
 
+    ; Preserve EBX (contains Multiboot2 info pointer) in a callee-saved register
+    push ebx
+
     call check_multiboot
     call check_cpuid
     call check_long_mode
 
     call setup_page_tables
     call enable_paging
+
+    ; Restore EBX and pass in EDI
+    pop edi
 
     lgdt [gdt64.pointer]
     jmp gdt64.code_segment:long_mode_start
@@ -22,8 +28,13 @@ start:
 
 
 check_multiboot:
-    cmp eax, 0x36d76289
+    ; Accept multiboot1 (0x2BADB002) or multiboot2 (0x36D76289)
+    cmp eax, 0x2BADB002
+    je .multiboot_ok
+    cmp eax, 0x36D76289
+    je .multiboot_ok
     jne .no_multiboot
+.multiboot_ok:
     ret
 .no_multiboot:
     mov al, "M"
