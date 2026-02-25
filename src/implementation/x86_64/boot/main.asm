@@ -4,8 +4,16 @@ extern long_mode_start
 
 section .text
 bits 32
+
+; Multiboot magic numbers
+MULTIBOOT1_MAGIC equ 0x2BADB002
+MULTIBOOT2_MAGIC equ 0x36D76289
+
 start:
     mov esp, stack_top
+
+    ; Preserve EBX (contains Multiboot2 info pointer) in a callee-saved register
+    push ebx
 
     call check_multiboot
     call check_cpuid
@@ -13,6 +21,9 @@ start:
 
     call setup_page_tables
     call enable_paging
+
+    ; Restore EBX and pass in EDI
+    pop edi
 
     lgdt [gdt64.pointer]
     jmp gdt64.code_segment:long_mode_start
@@ -22,8 +33,13 @@ start:
 
 
 check_multiboot:
-    cmp eax, 0x36d76289
+    ; Accept multiboot1 (MULTIBOOT1_MAGIC) or multiboot2 (MULTIBOOT2_MAGIC)
+    cmp eax, MULTIBOOT1_MAGIC
+    je .multiboot_ok
+    cmp eax, MULTIBOOT2_MAGIC
+    je .multiboot_ok
     jne .no_multiboot
+.multiboot_ok:
     ret
 .no_multiboot:
     mov al, "M"
