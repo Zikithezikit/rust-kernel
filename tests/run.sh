@@ -5,7 +5,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 KERNEL_ISO="$PROJECT_DIR/dist/x86_64/kernel.iso"
-TIMEOUT=10
+
+QEMU_TIMEOUT=10
+BOOT_WAIT_SECONDS=2
 
 echo "=== Building kernel ==="
 cd "$PROJECT_DIR"
@@ -21,7 +23,7 @@ fi
 LOG_FILE="$SCRIPT_DIR/qemu_output.log"
 rm -f "$LOG_FILE"
 
-timeout $TIMEOUT qemu-system-x86_64 \
+timeout $QEMU_TIMEOUT qemu-system-x86_64 \
     -cdrom "$KERNEL_ISO" \
     -serial file:"$LOG_FILE" \
     -display none \
@@ -29,7 +31,7 @@ timeout $TIMEOUT qemu-system-x86_64 \
     2>/dev/null &
 
 QEMU_PID=$!
-sleep 2
+sleep $BOOT_WAIT_SECONDS
 
 if kill -0 $QEMU_PID 2>/dev/null; then
     kill $QEMU_PID 2>/dev/null || true

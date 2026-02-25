@@ -12,9 +12,21 @@ static KEYBOARD: Mutex<Option<Keyboard<Us104Key, ScancodeSet1>>> = Mutex::new(No
 
 const MASTER_CONTROL: u16 = 0x20;
 const MASTER_DATA: u16 = 0x21;
-
 const SLAVE_CONTROL: u16 = 0xA0;
 const SLAVE_DATA: u16 = 0xA1;
+
+const KEYBOARD_DATA_PORT: u16 = 0x60;
+
+const IRQ_BASE_MASTER: u8 = 32;
+const IRQ_BASE_SLAVE: u8 = 40;
+
+const PIC_INIT: u8 = 0x11;
+const PIC_ICW4_8086: u8 = 0x01;
+
+const SLAVE_IRQ_LINE: u8 = 0x04;
+const SLAVE_IDENTITY: u8 = 0x02;
+
+const END_OF_INTERRUPT: u8 = 0x20;
 
 #[derive(Clone, Copy)]
 pub enum IrqNumber {
@@ -39,8 +51,8 @@ pub enum IrqNumber {
 pub fn init_idt() {
     let mut idt = InterruptDescriptorTable::new();
     idt.debug.set_handler_fn(debug_handler);
-    idt[32].set_handler_fn(timer_interrupt_handler);
-    idt[33].set_handler_fn(keyboard_interrupt_handler);
+    idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
+    idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
     IDT.call_once(|| idt).load();
 
     *KEYBOARD.lock() = Some(Keyboard::new(
@@ -56,25 +68,20 @@ pub unsafe fn init_pic() {
     let mut slave_control = Port::new(SLAVE_CONTROL);
     let mut slave_data = Port::new(SLAVE_DATA);
 
-    // Start initialization (ICW1)
-    master_control.write(0x11u8);
-    slave_control.write(0x11u8);
+    master_control.write(PIC_INIT);
+    slave_control.write(PIC_INIT);
 
-    // Set vector offsets (ICW2)
-    master_data.write(MASTER_CONTROL as u8); // Master offset
-    slave_data.write(SLAVE_CONTROL as u8); // Slave offset
+    master_data.write(IRQ_BASE_MASTER);
+    slave_data.write(IRQ_BASE_SLAVE);
 
-    // Tell master about slave (ICW3)
-    master_data.write(0x04u8); // IRQ2 has slave
-    slave_data.write(0x02u8); // Slave identity
+    master_data.write(SLAVE_IRQ_LINE);
+    slave_data.write(SLAVE_IDENTITY);
 
-    // ICW4: 8086 mode
-    master_data.write(0x01u8);
-    slave_data.write(0x01u8);
+    master_data.write(PIC_ICW4_8086);
+    slave_data.write(PIC_ICW4_8086);
 
-    // Mask all IRQs (just in case)
-    master_data.write(0x0u8);
-    slave_data.write(0x0u8);
+    master_data.write(0x00);
+    slave_data.write(0x00);
 }
 
 extern "x86-interrupt" fn debug_handler(_stack_frame: InterruptStackFrame) {
@@ -94,7 +101,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     unsafe {
         without_interrupts(|| {
             if let Some(ref mut keyboard) = KEYBOARD.lock().as_mut() {
-                let mut port = Port::new(0x60);
+                let mut port = Port::new(KEYBOARD_DATA_PORT);
                 let scancode: u8 = port.read();
                 if let Ok(Some(_event)) = keyboard.add_byte(scancode) {
                     if let Some(key) = keyboard.process_keyevent(_event) {
@@ -115,7 +122,6 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 fn pic_end_of_interrupt(irq: u8) {
     let mut master = Port::new(MASTER_CONTROL);
     let mut slave = Port::new(SLAVE_CONTROL);
-    const END_OF_INTERRUPT: u8 = 0x20;
 
     if irq >= 8 {
         unsafe { slave.write(END_OF_INTERRUPT) };

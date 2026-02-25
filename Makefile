@@ -5,7 +5,7 @@
 build-kernel: $(KERNEL_BIN) iso
 
 # Host build - uses Docker to run build-kernel
-build:
+build: clean
 ifneq ($(IS_DOCKER),true)
 	@docker run --rm -i -v $$(pwd)/:/root/env rust-kernel-env bash -c "cd /root/env && IS_DOCKER=true make build-kernel"
 else
@@ -47,7 +47,7 @@ iso: copy-kernel
 	grub-mkrescue /usr/lib/grub/i386-pc -o dist/x86_64/kernel.iso $(ISO_DIR)
 
 clean:
-	rm -rf build dist target
+	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash -c "rm -rf build dist target"
 
 docker-shell:
 	docker run --rm -it -v $$(pwd)/:/root/env rust-kernel-env bash
