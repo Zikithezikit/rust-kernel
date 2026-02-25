@@ -9,9 +9,24 @@ KERNEL_ISO="$PROJECT_DIR/dist/x86_64/kernel.iso"
 QEMU_TIMEOUT=10
 BOOT_WAIT_SECONDS=2
 
-echo "=== Building kernel ==="
-cd "$PROJECT_DIR"
-make build
+VERBOSE=${VERBOSE:-0}
+
+if [ "$VERBOSE" = "1" ]; then
+    echo "=== Building kernel ==="
+    cd "$PROJECT_DIR"
+    make build
+else
+    cd "$PROJECT_DIR"
+    echo -n "Compiling"
+    make build >/dev/null 2>&1 &
+    BUILD_PID=$!
+    while kill -0 $BUILD_PID 2>/dev/null; do
+        echo -n "."
+        sleep 0.5
+    done
+    wait $BUILD_PID
+    echo ""
+fi
 
 echo "=== Running QEMU boot test ==="
 

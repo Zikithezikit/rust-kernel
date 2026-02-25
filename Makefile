@@ -1,5 +1,5 @@
 # Build targets
-.PHONY: build build-kernel clean iso copy-kernel docker-shell build-docker run-kernel run-tests
+.PHONY: build build-kernel clean iso copy-kernel docker-shell build-docker run-kernel run-tests run-tests-verbose
 
 # Direct build (requires cross-compiler tools - use inside Docker)
 build-kernel: $(KERNEL_BIN) iso
@@ -60,3 +60,6 @@ run-kernel:
 
 run-tests:
 	bash tests/run.sh
+
+run-tests-verbose:
+	VERBOSE=1 bash tests/run.sh
