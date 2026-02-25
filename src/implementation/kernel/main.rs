@@ -2,10 +2,13 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 
+extern crate alloc;
+
 mod allocator;
 mod interrupts;
 mod panic;
 mod std_lib;
+mod tests;
 
 use allocator::BumpAllocator;
 use x86_64::instructions::interrupts as x86_64_interrupts;
@@ -28,7 +31,8 @@ pub extern "C" fn kernel_main() -> ! {
         std_lib::serial::init();
     }
     std_lib::serial::write_string("Serial initialized!\n");
-    std_lib::serial::write_string("Allocator enabled!\n");
+
+    tests::run_tests();
 
     unsafe {
         interrupts::init_pic();
