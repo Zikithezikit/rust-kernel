@@ -54,3 +54,21 @@ pub fn write_string(s: &str) {
 pub fn write_char(c: char) {
     write_byte(c as u8);
 }
+
+pub fn write_hex(mut value: u64) {
+    let digits = b"0123456789abcdef";
+    let mut buf = [0u8; 16];
+    let mut i = 16;
+    while value != 0 {
+        i -= 1;
+        buf[i] = digits[(value & 0xf) as usize];
+        value >>= 4;
+    }
+    if i == 16 {
+        i -= 1;
+        buf[i] = b'0';
+    }
+    for &byte in &buf[i..] {
+        write_byte(byte);
+    }
+}

@@ -1,64 +1,39 @@
-/// Tests that the allocator works correctly with Vec.
+use crate::std_lib::serial;
+
 pub fn test_vec_allocation() {
     use crate::alloc::vec::Vec;
-    use crate::std_lib::serial;
-
-    serial::write_string("Vec allocation test: ");
-
-    let mut numbers: Vec<u32> = Vec::new();
-    numbers.push(42);
-    numbers.push(123);
-    numbers.push(999);
-
-    for n in &numbers {
-        let s = crate::alloc::format!("{} ", n);
-        serial::write_string(&s);
-    }
-    serial::write_string("\n");
+    let mut v: Vec<u32> = Vec::new();
+    v.push(42);
+    v.push(123);
+    v.push(999);
+    let ok = v.len() == 3 && v[0] == 42 && v[1] == 123 && v[2] == 999;
+    serial::write_string(if ok { "vec: OK\n" } else { "vec: FAIL\n" });
 }
 
-/// Tests that the allocator works correctly with Box.
 pub fn test_box_allocation() {
     use crate::alloc::boxed::Box;
-    use crate::std_lib::serial;
-
-    serial::write_string("Box allocation test: ");
-
-    let boxed = Box::new(42);
-    let s = crate::alloc::format!("{} ", *boxed);
-    serial::write_string(&s);
-
-    serial::write_string("\n");
+    let b = Box::new(42);
+    serial::write_string(if *b == 42 { "box: OK\n" } else { "box: FAIL\n" });
 }
 
-/// Tests that the allocator works correctly with String.
 pub fn test_string_allocation() {
     use crate::alloc::string::String;
-    use crate::std_lib::serial;
-
-    serial::write_string("String allocation test: ");
-
     let mut s = String::new();
-    s.push_str("Hello, ");
-    s.push_str("Kernel!");
-
-    serial::write_string(&s);
-    serial::write_string("\n");
+    s.push_str("Hello, Kernel!");
+    serial::write_string(if s == "Hello, Kernel!" {
+        "string: OK\n"
+    } else {
+        "string: FAIL\n"
+    });
 }
 
-/// Tests multiple allocations in sequence.
 pub fn test_multiple_allocations() {
     use crate::alloc::boxed::Box;
     use crate::alloc::string::String;
     use crate::alloc::vec::Vec;
-    use crate::std_lib::serial;
 
-    serial::write_string("Multiple allocations test: ");
-
-    let _vec: Vec<u8> = Vec::with_capacity(10);
-    let _string = String::from("test");
-    let _box = Box::new(123);
-
-    serial::write_string("OK");
-    serial::write_string("\n");
+    let _v: Vec<u8> = Vec::with_capacity(10);
+    let _s = String::from("test");
+    let _b = Box::new(123);
+    serial::write_string("mixed: OK\n");
 }

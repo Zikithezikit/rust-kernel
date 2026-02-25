@@ -9,6 +9,7 @@ mod interrupts;
 mod panic;
 mod std_lib;
 mod tests;
+mod vmm;
 
 use allocator::BumpAllocator;
 use x86_64::instructions::interrupts as x86_64_interrupts;
