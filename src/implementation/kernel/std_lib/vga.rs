@@ -58,19 +58,27 @@ pub fn scroll_up() {
         for col in 0..BUFFER_WIDTH {
             let offset = buffer_offset(col, last_row);
             *VGA_BUFFER_ADDRESS.add(offset) = b' ';
-            *VGA_BUFFER_ADDRESS.add(offset + 1) = foreground_background_colors(ColorCodeVga::White, ColorCodeVga::Black);
+            *VGA_BUFFER_ADDRESS.add(offset + 1) =
+                foreground_background_colors(ColorCodeVga::White, ColorCodeVga::Black);
         }
     }
 }
 
 // Print a single character with color at the current cursor
-pub fn print_char_with_color(byte: u8, foreground_color: ColorCodeVga, background_color: ColorCodeVga) {
+pub fn print_char_with_color(
+    byte: u8,
+    foreground_color: ColorCodeVga,
+    background_color: ColorCodeVga,
+) {
     unsafe {
         let mut col;
         let mut row;
 
         match CURSOR {
-            Cursor::Position { col: c, row: r } => { col = c; row = r; }
+            Cursor::Position { col: c, row: r } => {
+                col = c;
+                row = r;
+            }
         }
 
         match byte {
@@ -81,7 +89,8 @@ pub fn print_char_with_color(byte: u8, foreground_color: ColorCodeVga, backgroun
             _ => {
                 let offset = buffer_offset(col, row);
                 *VGA_BUFFER_ADDRESS.add(offset) = byte;
-                *VGA_BUFFER_ADDRESS.add(offset + 1) = foreground_background_colors(foreground_color, background_color);
+                *VGA_BUFFER_ADDRESS.add(offset + 1) =
+                    foreground_background_colors(foreground_color, background_color);
                 col += 1;
 
                 if col >= BUFFER_WIDTH {
@@ -106,7 +115,11 @@ pub fn print_char(byte: u8) {
 }
 
 // Print a string with color
-pub fn print_string_with_color(to_print: &str, foreground_color: ColorCodeVga, background_color: ColorCodeVga) {
+pub fn print_string_with_color(
+    to_print: &str,
+    foreground_color: ColorCodeVga,
+    background_color: ColorCodeVga,
+) {
     for byte in to_print.bytes() {
         print_char_with_color(byte, foreground_color, background_color);
     }
@@ -124,8 +137,11 @@ pub fn println(to_print: &str) {
 }
 
 // Print a line with color
-pub fn println_with_color(to_print: &str, foreground_color: ColorCodeVga, background_color: ColorCodeVga)
-{
+pub fn println_with_color(
+    to_print: &str,
+    foreground_color: ColorCodeVga,
+    background_color: ColorCodeVga,
+) {
     print_string_with_color(to_print, foreground_color, background_color);
     print_char_with_color(b'\n', foreground_color, background_color);
 }
