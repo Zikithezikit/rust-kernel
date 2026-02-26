@@ -45,6 +45,7 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
 
     unsafe {
         arch::x86::interrupts::init_pic();
+        arch::x86::interrupts::init_pit();
     }
     arch::x86::interrupts::init_idt();
     x86_64_interrupts::enable();

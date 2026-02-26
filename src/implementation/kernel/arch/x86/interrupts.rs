@@ -2,6 +2,7 @@
 
 use crate::drivers::vga;
 use crate::memory::vmm;
+use crate::task::scheduler::SCHEDULER;
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
 use spin::Once;
@@ -28,6 +29,11 @@ const SLAVE_IRQ_LINE: u8 = 0x04;
 const SLAVE_IDENTITY: u8 = 0x02;
 
 const END_OF_INTERRUPT: u8 = 0x20;
+
+const PIT_CHANNEL_0: u16 = 0x40;
+const PIT_COMMAND: u16 = 0x43;
+
+const PIT_MODE_RATE_GENERATOR: u8 = 0x36;
 
 #[derive(Clone, Copy)]
 pub enum IrqNumber {
@@ -86,6 +92,17 @@ pub unsafe fn init_pic() {
     slave_data.write(0x00);
 }
 
+pub unsafe fn init_pit() {
+    let mut command = Port::new(PIT_COMMAND);
+    let mut channel0 = Port::new(PIT_CHANNEL_0);
+
+    command.write(PIT_MODE_RATE_GENERATOR);
+
+    let divisor: u16 = (1193180u32 / 100) as u16;
+    channel0.write((divisor & 0xFF) as u8);
+    channel0.write(((divisor >> 8) & 0xFF) as u8);
+}
+
 extern "x86-interrupt" fn debug_handler(_stack_frame: InterruptStackFrame) {
     vga::println("EXCEPTION: DEBUG");
     loop {
@@ -101,6 +118,7 @@ extern "x86-interrupt" fn page_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    SCHEDULER.preemptive_tick();
     pic_end_of_interrupt(IrqNumber::SystemTimer as u8);
 }
 

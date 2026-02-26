@@ -235,3 +235,92 @@ pub fn test_id_allocator_max() {
         "id_alloc_max: FAIL\n"
     });
 }
+
+pub fn test_scheduler_tick() {
+    serial::write_string("Testing scheduler tick...\n");
+
+    SCHEDULER.spawn(test_task_entry, "tick_test_task");
+
+    let initial_count = SCHEDULER.runnable_count();
+    serial::write_string("Initial runnable: ");
+    serial::write_hex(initial_count as u64);
+    serial::write_string("\n");
+
+    SCHEDULER.tick();
+
+    let after_tick_count = SCHEDULER.runnable_count();
+    serial::write_string("After tick runnable: ");
+    serial::write_hex(after_tick_count as u64);
+    serial::write_string("\n");
+
+    let ok = after_tick_count >= 1;
+    serial::write_string(if ok {
+        "scheduler_tick: OK\n"
+    } else {
+        "scheduler_tick: FAIL\n"
+    });
+}
+
+pub fn test_scheduler_tick_time_slice() {
+    serial::write_string("Testing scheduler tick time slice...\n");
+
+    SCHEDULER.spawn(test_task_entry, "timeslice_task");
+
+    if let Some(scheduled) = SCHEDULER.schedule() {
+        let initial_slice = scheduled.lock().time_slice;
+        serial::write_string("Initial time_slice: ");
+        serial::write_hex(initial_slice as u64);
+        serial::write_string("\n");
+
+        for _ in 0..5 {
+            SCHEDULER.tick();
+        }
+
+        let after_5_ticks = scheduled.lock().time_slice;
+        serial::write_string("After 5 ticks time_slice: ");
+        serial::write_hex(after_5_ticks as u64);
+        serial::write_string("\n");
+
+        let ok = after_5_ticks < initial_slice || initial_slice == 0;
+        serial::write_string(if ok {
+            "scheduler_timeslice: OK\n"
+        } else {
+            "scheduler_timeslice: FAIL\n"
+        });
+    } else {
+        serial::write_string("scheduler_timeslice: FAIL (could not schedule)\n");
+    }
+}
+
+pub fn test_scheduler_preemptive_tick() {
+    serial::write_string("Testing preemptive tick...\n");
+
+    let initial_count = SCHEDULER.runnable_count();
+    serial::write_string("Initial runnable: ");
+    serial::write_hex(initial_count as u64);
+    serial::write_string("\n");
+
+    SCHEDULER.spawn(test_task_entry, "preempt_task1");
+    SCHEDULER.spawn(test_task_entry, "preempt_task2");
+
+    let before_preempt = SCHEDULER.runnable_count();
+    serial::write_string("Before preempt: ");
+    serial::write_hex(before_preempt as u64);
+    serial::write_string("\n");
+
+    for _ in 0..15 {
+        SCHEDULER.preemptive_tick();
+    }
+
+    let after_preempt = SCHEDULER.runnable_count();
+    serial::write_string("After preempt: ");
+    serial::write_hex(after_preempt as u64);
+    serial::write_string("\n");
+
+    let ok = after_preempt >= 2;
+    serial::write_string(if ok {
+        "preemptive_tick: OK\n"
+    } else {
+        "preemptive_tick: FAIL\n"
+    });
+}
