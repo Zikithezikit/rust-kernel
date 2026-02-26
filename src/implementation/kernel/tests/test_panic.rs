@@ -5,7 +5,7 @@
 //! Note: The actual panic handler cannot be tested directly as it halts the system.
 //! These tests verify the helper functions and constants used by the panic handler.
 
-use crate::std_lib::serial;
+use crate::drivers::serial;
 
 pub fn test_panic_constants() {
     serial::write_string("Testing panic handler constants...\n");

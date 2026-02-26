@@ -1,5 +1,5 @@
-use crate::pmm::PMM;
-use crate::std_lib::serial;
+use crate::drivers::serial;
+use crate::memory::pmm::PMM;
 
 pub fn test_pmm_initialized() {
     let total = PMM.get_total_pages();

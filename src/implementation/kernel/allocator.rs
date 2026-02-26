@@ -2,7 +2,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 use spin::Mutex;
 
-use crate::pmm::PMM;
+use crate::memory::pmm::PMM;
 
 /// Bump allocator using PMM for heap memory
 ///
