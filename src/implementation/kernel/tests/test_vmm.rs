@@ -1,4 +1,4 @@
-use crate::std_lib::serial;
+use crate::drivers::serial;
 
 const TEST_ADDRESS: usize = 0x100000;
 const TEST_VAL: u8 = 0x42;

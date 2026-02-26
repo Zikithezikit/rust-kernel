@@ -298,7 +298,7 @@ impl PhysicalMemoryManager {
         let info = match Multiboot2Info::new(multiboot_info_ptr) {
             Some(i) => i,
             None => {
-                crate::std_lib::serial::write_string("Failed to parse multiboot info\n");
+                crate::drivers::serial::write_string("Failed to parse multiboot info\n");
                 return;
             }
         };
@@ -321,7 +321,7 @@ impl PhysicalMemoryManager {
         }
 
         if max_addr == 0 {
-            crate::std_lib::serial::write_string("No memory found!\n");
+            crate::drivers::serial::write_string("No memory found!\n");
             return;
         }
 
@@ -337,13 +337,13 @@ impl PhysicalMemoryManager {
 
         // Ensure bitmap fits in pre-allocated space
         if bitmap_pages > MAX_BITMAP_PAGES {
-            crate::std_lib::serial::write_string("Bitmap too large!\n");
+            crate::drivers::serial::write_string("Bitmap too large!\n");
             return;
         }
 
         // Get pre-allocated bitmap from BSS section
         #[allow(static_mut_refs)]
-        let bitmap_ptr = crate::globals::PMM_BITMAP.as_mut_ptr();
+        let bitmap_ptr = crate::memory::globals::PMM_BITMAP.as_mut_ptr();
 
         // Initialize bitmap to zeros (all pages free initially)
         bitmap_ptr.write_bytes(0, bitmap_pages * PAGE_SIZE);

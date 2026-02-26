@@ -1,4 +1,4 @@
-use crate::std_lib::serial;
+use crate::drivers::serial;
 
 pub fn test_vec_allocation() {
     use crate::alloc::vec::Vec;

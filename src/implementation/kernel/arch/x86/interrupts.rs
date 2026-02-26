@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use crate::std_lib::vga;
-use crate::vmm;
+use crate::drivers::vga;
+use crate::memory::vmm;
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
 use spin::Once;

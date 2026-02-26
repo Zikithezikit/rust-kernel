@@ -1,4 +1,4 @@
-use crate::std_lib::{serial, vga};
+use crate::drivers::{serial, vga};
 use x86_64::structures::idt::InterruptStackFrame;
 
 pub fn page_fault_handler(stack_frame: &InterruptStackFrame, error_code: u64) {
