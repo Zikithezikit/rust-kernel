@@ -2,8 +2,8 @@
 //!
 //! Handles early kernel setup including PMM and heap initialization.
 
-use crate::allocator::PmmAllocator;
 use crate::drivers::serial;
+use crate::memory::allocator::PmmAllocator;
 use crate::memory::pmm::PMM;
 
 pub fn init_pmm(multiboot_info: usize) -> bool {

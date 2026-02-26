@@ -343,7 +343,7 @@ impl PhysicalMemoryManager {
 
         // Get pre-allocated bitmap from BSS section
         #[allow(static_mut_refs)]
-        let bitmap_ptr = crate::globals::PMM_BITMAP.as_mut_ptr();
+        let bitmap_ptr = crate::memory::globals::PMM_BITMAP.as_mut_ptr();
 
         // Initialize bitmap to zeros (all pages free initially)
         bitmap_ptr.write_bytes(0, bitmap_pages * PAGE_SIZE);

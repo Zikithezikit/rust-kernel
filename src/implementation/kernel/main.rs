@@ -4,15 +4,13 @@
 
 extern crate alloc;
 
-mod allocator;
+mod arch;
 mod drivers;
-mod globals;
-mod interrupts;
 mod memory;
 mod panic;
 mod tests;
 
-use allocator::PmmAllocator;
+use memory::allocator::PmmAllocator;
 use memory::init::init_memory;
 use x86_64::instructions::interrupts as x86_64_interrupts;
 
@@ -45,9 +43,9 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     tests::run_tests();
 
     unsafe {
-        interrupts::init_pic();
+        arch::x86::interrupts::init_pic();
     }
-    interrupts::init_idt();
+    arch::x86::interrupts::init_idt();
     x86_64_interrupts::enable();
 
     loop {
