@@ -1,0 +1,168 @@
+//! Round-robin scheduler
+//!
+//! Provides a simple round-robin scheduler for task management.
+//! Tasks are kept in a run queue and scheduled in rotation.
+//! Uses Linux-style ID allocation with bitmap for reuse.
+
+use alloc::collections::VecDeque;
+use alloc::sync::Arc;
+use spin::Mutex;
+
+use super::id_allocator::TASK_ID_ALLOCATOR;
+use super::task::{Task, TaskId, TaskState, DEFAULT_TIME_SLICE};
+
+/// Global scheduler instance
+pub static SCHEDULER: Scheduler = Scheduler::new();
+
+/// Round-robin task scheduler
+pub struct Scheduler {
+    /// Queue of runnable tasks
+    run_queue: Mutex<VecDeque<Arc<Mutex<Task>>>>,
+    /// Current running task
+    current: Mutex<Option<Arc<Mutex<Task>>>>,
+    /// Whether scheduler has been initialized
+    initialized: Mutex<bool>,
+}
+
+impl Scheduler {
+    /// Creates a new uninitialized scheduler
+    pub const fn new() -> Self {
+        Scheduler {
+            run_queue: Mutex::new(VecDeque::new()),
+            current: Mutex::new(None),
+            initialized: Mutex::new(false),
+        }
+    }
+
+    /// Initializes the scheduler
+    ///
+    /// Called once during kernel startup.
+    pub fn init(&self) {
+        let mut init = self.initialized.lock();
+        if *init {
+            return;
+        }
+        *init = true;
+        drop(init);
+
+        crate::drivers::serial::write_string("Scheduler initialized\n");
+    }
+
+    /// Adds a new task to the run queue
+    ///
+    /// # Arguments
+    /// * `task` - The task to add
+    pub fn add_task(&self, task: Arc<Mutex<Task>>) {
+        let mut t = task.lock();
+        t.set_ready();
+        drop(t);
+
+        self.run_queue.lock().push_back(task);
+    }
+
+    /// Gets the next task to run (round-robin)
+    ///
+    /// # Returns
+    /// - Some(task) - Next task to execute
+    /// - None if no runnable tasks
+    pub fn schedule(&self) -> Option<Arc<Mutex<Task>>> {
+        let mut queue = self.run_queue.lock();
+
+        if queue.is_empty() {
+            return None;
+        }
+
+        let task = queue.pop_front()?;
+        {
+            let mut t = task.lock();
+            if t.state == TaskState::Ready {
+                t.set_running();
+            }
+        }
+        *self.current.lock() = Some(task.clone());
+
+        Some(task)
+    }
+
+    /// Called when current task's time slice expires
+    ///
+    /// Moves current task to back of run queue if still runnable.
+    pub fn tick(&self) {
+        let mut current = match self.current.lock().take() {
+            Some(t) => t,
+            None => return,
+        };
+
+        let should_reschedule = {
+            let mut t = current.lock();
+            if t.time_slice > 0 {
+                t.time_slice -= 1;
+                false
+            } else {
+                t.time_slice = t.time_slice_max;
+                t.ticks_run += 1;
+
+                if t.state == TaskState::Running {
+                    t.set_ready();
+                    true
+                } else {
+                    false
+                }
+            }
+        };
+
+        if should_reschedule {
+            self.run_queue.lock().push_back(current);
+        } else {
+            *self.current.lock() = Some(current);
+        }
+    }
+
+    /// Gets the currently running task
+    pub fn current_task(&self) -> Option<Arc<Mutex<Task>>> {
+        self.current.lock().clone()
+    }
+
+    /// Removes a task from the scheduler
+    ///
+    /// Used when a task exits. Frees the task ID back to the allocator.
+    pub fn remove_task(&self, task_id: TaskId) {
+        let mut queue = self.run_queue.lock();
+        queue.retain(|t| t.lock().id != task_id);
+
+        if let Some(ref current) = *self.current.lock() {
+            if current.lock().id == task_id {
+                *self.current.lock() = None;
+            }
+        }
+
+        unsafe {
+            TASK_ID_ALLOCATOR.free(task_id);
+        }
+    }
+
+    /// Creates a new task and adds it to the run queue
+    ///
+    /// # Arguments
+    /// * `entry` - Function to execute
+    /// * `name` - Task name for debugging
+    ///
+    /// # Returns
+    /// - Some(task) - The created task
+    /// - None if creation failed (no IDs available)
+    pub fn spawn(&self, entry: fn(), name: &'static str) -> Option<Arc<Mutex<Task>>> {
+        let id = TASK_ID_ALLOCATOR.alloc()?;
+
+        let task = unsafe { Task::new(id, entry, name)? };
+        let task_arc = task.clone();
+        self.add_task(task_arc);
+        Some(task)
+    }
+
+    /// Returns the number of runnable tasks
+    pub fn runnable_count(&self) -> usize {
+        let queue_len = self.run_queue.lock().len();
+        let current_running = if self.current.lock().is_some() { 1 } else { 0 };
+        queue_len + current_running
+    }
+}

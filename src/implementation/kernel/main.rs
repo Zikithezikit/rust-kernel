@@ -8,6 +8,7 @@ mod arch;
 mod drivers;
 mod memory;
 mod panic;
+mod task;
 mod tests;
 
 use memory::allocator::PmmAllocator;
@@ -47,6 +48,15 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     }
     arch::x86::interrupts::init_idt();
     x86_64_interrupts::enable();
+
+    task::scheduler::SCHEDULER.init();
+
+    fn idle_task() {
+        loop {
+            x86_64::instructions::hlt();
+        }
+    }
+    task::scheduler::SCHEDULER.spawn(idle_task, "idle");
 
     loop {
         x86_64::instructions::hlt();
