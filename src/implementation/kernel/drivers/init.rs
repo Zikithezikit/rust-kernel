@@ -5,28 +5,36 @@
 use crate::drivers::serial;
 use crate::drivers::vga;
 
-pub fn init_vga() -> bool {
-    vga::clear_screen();
-    vga::println("Starting...");
-    true
+#[derive(Debug)]
+pub enum DriverError {
+    VgaInitFailed,
+    SerialInitFailed,
 }
 
-pub fn init_serial() -> bool {
+impl core::fmt::Display for DriverError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            DriverError::VgaInitFailed => write!(f, "VGA initialization failed"),
+            DriverError::SerialInitFailed => write!(f, "Serial initialization failed"),
+        }
+    }
+}
+
+pub fn init_vga() -> Result<(), DriverError> {
+    vga::clear_screen();
+    vga::println("Starting...");
+    Ok(())
+}
+
+pub fn init_serial() -> Result<(), DriverError> {
     unsafe {
         serial::init();
     }
     serial::write_string("Kernel started\n");
-    true
+    Ok(())
 }
 
-pub fn init() -> bool {
-    if !init_vga() {
-        return false;
-    }
-
-    if !init_serial() {
-        return false;
-    }
-
-    true
+pub fn init() -> Result<(), DriverError> {
+    init_vga()?;
+    init_serial()
 }

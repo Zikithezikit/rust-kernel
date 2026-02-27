@@ -6,6 +6,9 @@ use crate::drivers::serial;
 use crate::memory::allocator::PmmAllocator;
 use crate::memory::pmm::PMM;
 
+const HEAP_START: usize = 0x_100_000;
+const HEAP_SIZE: usize = 0x_100_000;
+
 #[derive(Debug)]
 pub enum MemoryError {
     InvalidMultibootInfo,
@@ -54,9 +57,6 @@ pub fn init_heap(
 }
 
 pub fn init_memory(multiboot_info: usize, allocator: &PmmAllocator) -> Result<(), MemoryError> {
-    const HEAP_START: usize = 0x_100_000;
-    const HEAP_SIZE: usize = 0x_100_000;
-
     init_pmm(multiboot_info)?;
     init_heap(allocator, HEAP_START, HEAP_SIZE)
 }

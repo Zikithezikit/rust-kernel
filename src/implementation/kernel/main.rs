@@ -42,7 +42,7 @@ fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
 
 #[no_mangle]
 pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
-    drivers::init::init();
+    halt_on_err(drivers::init::init(), "Driver init failed");
     halt_on_err(
         memory::init::init_memory(multiboot_info, &ALLOCATOR),
         "Memory init failed",
