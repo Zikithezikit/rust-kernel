@@ -3,3 +3,4 @@
 //! Contains IDT, PIC, keyboard, and other x86-specific functionality.
 
 pub mod interrupts;
+pub mod tss;

@@ -151,11 +151,21 @@ stack_bottom:
     resb 4096 * 4
 stack_top:
 
+global gdt64
+global gdt64.pointer
+global gdt64.code_segment
+global gdt64.tss_segment
+global tss_segment
+
 section .rodata
 gdt64:
     dq 0 ; zero entry
 .code_segment: equ $ - gdt64
     dq (1 << 43) | (1 << 44) | (1 << 47) | (1 << 53) ; code segment
+.tss_segment: equ $ - gdt64
+    dq 0 ; TSS descriptor (will be set up in Rust)
 .pointer:
     dw $ - gdt64 - 1
     dq gdt64
+
+tss_segment: equ gdt64.tss_segment
