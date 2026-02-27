@@ -12,65 +12,54 @@ mod syscall;
 mod task;
 mod tests;
 
-use alloc::format;
 use drivers::serial;
 use memory::allocator::PmmAllocator;
-use memory::init::init_memory;
-use x86_64::instructions::interrupts as x86_64_interrupts;
 
 #[global_allocator]
 static ALLOCATOR: PmmAllocator = PmmAllocator::new();
 
+#[inline(always)]
+fn halt() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
+#[inline(always)]
+fn log_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
+    if let Err(e) = result {
+        serial::write_string(&alloc::format!("{}: {}\n", msg, e));
+    }
+}
+
+#[inline(always)]
+fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
+    if let Err(e) = result {
+        serial::write_string(&alloc::format!("{}: {}\n", msg, e));
+        halt();
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
-    drivers::vga::clear_screen();
-    drivers::vga::println("Starting...");
-
-    unsafe {
-        drivers::serial::init();
-    }
-    drivers::serial::write_string("Kernel started\n");
-
-    if !init_memory(multiboot_info, &ALLOCATOR) {
-        drivers::serial::write_string("Memory init failed! Halting.\n");
-        loop {
-            x86_64::instructions::hlt();
-        }
-    }
+    drivers::init::init();
+    halt_on_err(
+        memory::init::init_memory(multiboot_info, &ALLOCATOR),
+        "Memory init failed",
+    );
 
     drivers::vga::clear_screen();
     drivers::vga::println("Hello, World!");
     drivers::vga::println("This is my kernel.");
+    serial::write_string("Serial initialized!\n");
 
-    drivers::serial::write_string("Serial initialized!\n");
-
-    if let Err(e) = arch::x86::tss::init() {
-        serial::write_string(&format!("TSS init failed: {:?}\n", e));
-    }
+    halt_on_err(arch::init::init_tss(), "TSS init failed");
 
     tests::run_tests();
 
-    if let Err(e) = arch::x86::tss::load() {
-        serial::write_string(&format!("TSS load failed: {:?}\n", e));
-    }
+    log_on_err(arch::init::load_tss(), "TSS load failed");
+    halt_on_err(arch::init::init_interrupts(), "Interrupts init failed");
+    halt_on_err(task::init::init(), "Task init failed");
 
-    unsafe {
-        arch::x86::interrupts::init_pic();
-        arch::x86::interrupts::init_pit();
-    }
-    arch::x86::interrupts::init_idt();
-    x86_64_interrupts::enable();
-
-    task::scheduler::SCHEDULER.init();
-
-    fn idle_task() {
-        loop {
-            x86_64::instructions::hlt();
-        }
-    }
-    task::scheduler::SCHEDULER.spawn(idle_task, "idle");
-
-    loop {
-        x86_64::instructions::hlt();
-    }
+    halt();
 }

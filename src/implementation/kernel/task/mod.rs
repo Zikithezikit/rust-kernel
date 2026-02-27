@@ -8,6 +8,7 @@
 //! - Scheduler
 
 pub mod id_allocator;
+pub mod init;
 pub mod scheduler;
 pub mod switch;
 pub mod task;
