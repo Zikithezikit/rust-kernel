@@ -24,4 +24,7 @@ pub fn run_tests() {
     test_task::test_id_allocator_basic();
     test_task::test_id_allocator_reuse();
     test_task::test_id_allocator_max();
+    test_task::test_scheduler_tick();
+    test_task::test_scheduler_tick_time_slice();
+    test_task::test_scheduler_preemptive_tick();
 }

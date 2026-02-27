@@ -10,6 +10,7 @@ use spin::Mutex;
 
 use super::id_allocator::TASK_ID_ALLOCATOR;
 use super::task::{Task, TaskId, TaskState, DEFAULT_TIME_SLICE};
+use crate::task::switch::current_task_ptr;
 
 /// Global scheduler instance
 pub static SCHEDULER: Scheduler = Scheduler::new();
@@ -113,6 +114,52 @@ impl Scheduler {
 
         if should_reschedule {
             self.run_queue.lock().push_back(current);
+        } else {
+            *self.current.lock() = Some(current);
+        }
+    }
+
+    /// Timer tick with preemptive rescheduling
+    ///
+    /// Called from timer interrupt. If current task's time slice expired,
+    /// switches to next runnable task.
+    pub fn preemptive_tick(&self) {
+        let mut current = match self.current.lock().take() {
+            Some(t) => t,
+            None => return,
+        };
+
+        let should_reschedule = {
+            let mut t = current.lock();
+            if t.time_slice > 0 {
+                t.time_slice -= 1;
+                false
+            } else {
+                t.time_slice = t.time_slice_max;
+                t.ticks_run += 1;
+
+                if t.state == TaskState::Running {
+                    t.set_ready();
+                    true
+                } else {
+                    false
+                }
+            }
+        };
+
+        if should_reschedule {
+            self.run_queue.lock().push_back(current);
+
+            if let Some(next_task) = self.schedule() {
+                unsafe {
+                    let task_ref = next_task.lock();
+                    current_task_ptr = Arc::as_ptr(&next_task) as usize;
+                    let rsp = task_ref.kernel_stack;
+                    drop(task_ref);
+
+                    crate::task::switch::context_switch(rsp);
+                }
+            }
         } else {
             *self.current.lock() = Some(current);
         }
