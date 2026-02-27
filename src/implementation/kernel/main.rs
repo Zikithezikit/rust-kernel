@@ -8,6 +8,7 @@ mod arch;
 mod drivers;
 mod memory;
 mod panic;
+mod syscall;
 mod task;
 mod tests;
 
