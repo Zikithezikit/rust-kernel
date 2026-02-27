@@ -12,6 +12,8 @@ mod syscall;
 mod task;
 mod tests;
 
+use alloc::format;
+use drivers::serial;
 use memory::allocator::PmmAllocator;
 use memory::init::init_memory;
 use x86_64::instructions::interrupts as x86_64_interrupts;
@@ -42,11 +44,15 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
 
     drivers::serial::write_string("Serial initialized!\n");
 
-    arch::x86::tss::init();
+    if let Err(e) = arch::x86::tss::init() {
+        serial::write_string(&format!("TSS init failed: {:?}\n", e));
+    }
 
     tests::run_tests();
 
-    arch::x86::tss::load();
+    if let Err(e) = arch::x86::tss::load() {
+        serial::write_string(&format!("TSS load failed: {:?}\n", e));
+    }
 
     unsafe {
         arch::x86::interrupts::init_pic();
@@ -56,9 +62,6 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     x86_64_interrupts::enable();
 
     task::scheduler::SCHEDULER.init();
-
-    arch::x86::tss::init();
-    arch::x86::tss::load();
 
     fn idle_task() {
         loop {

@@ -18,19 +18,9 @@ use alloc::sync::Arc;
 use spin::Mutex;
 use x86_64::structures::idt::InterruptStackFrame;
 
-pub use crate::syscall::numbers::{NR_syscalls, SyscallFn, SyscallNumber, SyscallResult};
-
-/// Error codes
-const EINVAL: SyscallResult = -22;
-const EBADF: SyscallResult = -9;
-const EAGAIN: SyscallResult = -11;
-const ENOMEM: SyscallResult = -12;
-const ENOSYS: SyscallResult = -38;
-
-/// Standard file descriptors
-const FD_STDIN: usize = 0;
-const FD_STDOUT: usize = 1;
-const FD_STDERR: usize = 2;
+pub use crate::syscall::numbers::{
+    Errno, FileDescriptor, NR_syscalls, SyscallFn, SyscallNumber, SyscallResult,
+};
 
 /// Default time slice for forked tasks (in ticks)
 const FORK_TIME_SLICE: usize = 10;
@@ -126,7 +116,7 @@ pub unsafe fn handle_syscall(_stack_frame: &InterruptStackFrame) -> SyscallResul
 }
 
 // ============================================================================
-// Syscall implementations - Linux-style
+// Syscall implementations
 // ============================================================================
 
 /// sys_exit - terminate current process
@@ -168,7 +158,7 @@ fn sys_write(
     let count: usize = arg3;
 
     if buf.is_null() {
-        return EINVAL;
+        return Errno::EINVAL.as_isize();
     }
 
     let slice: &[u8] = unsafe { core::slice::from_raw_parts(buf, count) };
@@ -183,10 +173,13 @@ fn sys_write(
 
     serial::write_string(&String::from_utf8_lossy(slice));
 
-    if fd == FD_STDOUT || fd == FD_STDERR {
-        count as SyscallResult
+    if let Some(fd_enum) = FileDescriptor::from_usize(fd) {
+        match fd_enum {
+            FileDescriptor::Stdout | FileDescriptor::Stderr => count as SyscallResult,
+            _ => Errno::EBADF.as_isize(),
+        }
     } else {
-        EBADF
+        Errno::EBADF.as_isize()
     }
 }
 
@@ -199,7 +192,7 @@ fn sys_read(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
 
 /// sys_getpid - get current process ID
@@ -212,9 +205,9 @@ fn sys_getpid(
     _arg6: usize,
 ) -> SyscallResult {
     if let Some(current) = SCHEDULER.current_task() {
-        current.lock().id as isize
+        current.lock().id as SyscallResult
     } else {
-        0
+        Errno::Ok.as_isize()
     }
 }
 
@@ -227,7 +220,7 @@ fn sys_getuid(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
 
 /// sys_getgid - get current group ID
@@ -239,7 +232,7 @@ fn sys_getgid(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
 
 /// sys_fork - create a child process
@@ -257,7 +250,7 @@ fn sys_fork(
 
         let new_id: usize = match TASK_ID_ALLOCATOR.alloc() {
             Some(id) => id,
-            None => return EAGAIN,
+            None => return Errno::EAGAIN.as_isize(),
         };
 
         let stack: usize = {
@@ -269,7 +262,7 @@ fn sys_fork(
                     unsafe {
                         TASK_ID_ALLOCATOR.free(new_id);
                     }
-                    return EAGAIN;
+                    return Errno::EAGAIN.as_isize();
                 }
             }
         };
@@ -296,7 +289,7 @@ fn sys_fork(
 
         new_id as SyscallResult
     } else {
-        ENOMEM
+        Errno::ENOMEM.as_isize()
     }
 }
 
@@ -310,7 +303,7 @@ fn sys_execve(
     _arg6: usize,
 ) -> SyscallResult {
     serial::write_string("sys_execve: not fully implemented\n");
-    0
+    Errno::ENOSYS.as_isize()
 }
 
 /// sys_open - open a file (stub - returns error)
@@ -323,7 +316,7 @@ fn sys_open(
     _arg6: usize,
 ) -> SyscallResult {
     serial::write_string("sys_open: not implemented\n");
-    -ENOSYS
+    Errno::ENOSYS.as_isize()
 }
 
 /// sys_close - close a file descriptor (stub - returns success)
@@ -335,7 +328,7 @@ fn sys_close(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
 
 /// sys_getppid - get parent process ID
@@ -348,10 +341,10 @@ fn sys_getppid(
     _arg6: usize,
 ) -> SyscallResult {
     if let Some(current) = SCHEDULER.current_task() {
-        let parent_id = current.lock().parent_id;
-        parent_id as isize
+        let parent_id: usize = current.lock().parent_id;
+        parent_id as SyscallResult
     } else {
-        0
+        Errno::Ok.as_isize()
     }
 }
 
@@ -364,7 +357,7 @@ fn sys_setuid(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
 
 /// sys_setgid - set group ID (stub - returns success)
@@ -376,5 +369,5 @@ fn sys_setgid(
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    0
+    Errno::Ok.as_isize()
 }
