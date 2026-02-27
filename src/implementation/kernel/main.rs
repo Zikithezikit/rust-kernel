@@ -41,7 +41,11 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
 
     drivers::serial::write_string("Serial initialized!\n");
 
+    arch::x86::tss::init();
+
     tests::run_tests();
+
+    arch::x86::tss::load();
 
     unsafe {
         arch::x86::interrupts::init_pic();
@@ -51,6 +55,9 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     x86_64_interrupts::enable();
 
     task::scheduler::SCHEDULER.init();
+
+    arch::x86::tss::init();
+    arch::x86::tss::load();
 
     fn idle_task() {
         loop {

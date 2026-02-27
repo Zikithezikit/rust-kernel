@@ -2,6 +2,7 @@ mod test_allocator;
 mod test_panic;
 mod test_pmm;
 mod test_task;
+mod test_tss;
 mod test_vmm;
 
 pub fn run_tests() {
@@ -27,4 +28,8 @@ pub fn run_tests() {
     test_task::test_scheduler_tick();
     test_task::test_scheduler_tick_time_slice();
     test_task::test_scheduler_preemptive_tick();
+    test_tss::test_tss_initialized();
+    test_tss::test_tss_double_fault_stack();
+    test_tss::test_gdt_has_code_segment();
+    test_tss::test_tss_ist_index();
 }
