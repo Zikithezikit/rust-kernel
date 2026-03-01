@@ -1,6 +1,7 @@
 mod test_allocator;
 mod test_panic;
 mod test_pmm;
+mod test_syscall;
 mod test_task;
 mod test_tss;
 mod test_vmm;
@@ -17,6 +18,13 @@ pub fn run_tests() {
     test_pmm::test_pmm_allocate_multiple_pages();
     test_pmm::test_pmm_stress();
     test_vmm::test_page_fault_handler();
+    test_syscall::test_syscall_table_initialized();
+    test_syscall::test_syscall_numbers();
+    test_syscall::test_system_ticks();
+    test_syscall::test_syscall_handler_exists();
+    test_syscall::test_file_descriptor_enum();
+    test_syscall::test_errno_enum();
+    test_syscall::test_syscall_number_from_u32();
     test_task::test_task_creation();
     test_task::test_scheduler_init();
     test_task::test_task_spawn();

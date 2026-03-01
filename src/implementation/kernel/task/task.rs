@@ -31,6 +31,7 @@ pub type TaskId = usize;
 /// - Parent/child relationships
 pub struct Task {
     pub id: TaskId,
+    pub parent_id: TaskId,
     pub state: TaskState,
     pub kernel_stack: usize,
     pub stack_size: usize,
@@ -57,6 +58,7 @@ impl Task {
 
         let task = Task {
             id,
+            parent_id: 0,
             state: TaskState::New,
             kernel_stack: stack,
             stack_size: KERNEL_STACK_SIZE,

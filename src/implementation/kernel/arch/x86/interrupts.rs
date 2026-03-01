@@ -2,6 +2,7 @@
 
 use crate::drivers::vga;
 use crate::memory::vmm;
+use crate::syscall::handler::handle_syscall;
 use crate::task::scheduler::SCHEDULER;
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
 use spin::Mutex;
@@ -35,6 +36,8 @@ const PIT_COMMAND: u16 = 0x43;
 
 const PIT_MODE_RATE_GENERATOR: u8 = 0x36;
 
+const SYSCALL_VECTOR: u8 = 0x80; // Matches SyscallNumber::SysExit = 0 but int 0x80 is separate
+
 #[derive(Clone, Copy)]
 pub enum IrqNumber {
     SystemTimer,
@@ -61,6 +64,11 @@ pub fn init_idt() {
     idt.page_fault.set_handler_fn(page_fault_handler);
     idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
     idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
+
+    // Syscall handler (int 0x80)
+    // Must use set_handler_fn since 0x80 is not a CPU exception
+    idt[128].set_handler_fn(syscall_interrupt_handler);
+
     IDT.call_once(|| idt).load();
 
     *KEYBOARD.lock() = Some(Keyboard::new(
@@ -118,6 +126,9 @@ extern "x86-interrupt" fn page_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    use crate::syscall::handler::increment_ticks;
+
+    increment_ticks();
     SCHEDULER.preemptive_tick();
     pic_end_of_interrupt(IrqNumber::SystemTimer as u8);
 }
@@ -143,6 +154,16 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
             }
             pic_end_of_interrupt(IrqNumber::Keyboard as u8);
         });
+    }
+}
+
+extern "x86-interrupt" fn syscall_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    use crate::syscall::handler::handle_syscall;
+
+    let result = unsafe { handle_syscall(&_stack_frame) };
+
+    unsafe {
+        core::arch::asm!("mov rax, {}", in(reg) result);
     }
 }
 
