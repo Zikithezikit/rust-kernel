@@ -1,10 +1,12 @@
 use crate::drivers::serial;
 use crate::vfs::dentry::{Dentry, DentryFlags};
 use crate::vfs::file::{FileFlags, FileTable};
+use crate::vfs::initramfs;
 use crate::vfs::inode::{FilePermissions, FileType, Inode, InodeRef, SeekFrom};
 use crate::vfs::inode_impl::InodeImpl;
 use crate::vfs::mount::MountNamespace;
 use crate::vfs::superblock::SuperBlock;
+use crate::vfs::tmpfs;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -392,5 +394,307 @@ pub fn test_vfs_walk_path() {
         "test_vfs_walk_path: OK\n"
     } else {
         "test_vfs_walk_path: FAIL\n"
+    });
+}
+
+pub fn test_initramfs_root_creation() {
+    serial::write_string("Testing initramfs root creation...\n");
+
+    let root = initramfs::create_initramfs_root();
+    let root_lock = root.lock();
+
+    let ok = root_lock.name() == "/"
+        && root_lock.inode_type() == FileType::Directory
+        && root_lock.stat().st_ino > 0;
+
+    serial::write_string(if ok {
+        "test_initramfs_root_creation: OK\n"
+    } else {
+        "test_initramfs_root_creation: FAIL\n"
+    });
+}
+
+pub fn test_initramfs_children() {
+    serial::write_string("Testing initramfs children...\n");
+
+    let root = initramfs::create_initramfs_root();
+    let root_lock = root.lock();
+
+    let init_exists = root_lock.lookup("init").is_some();
+    let hello_exists = root_lock.lookup("hello.txt").is_some();
+    let bin_exists = root_lock.lookup("bin").is_some();
+    let etc_exists = root_lock.lookup("etc").is_some();
+
+    let ok = init_exists && hello_exists && bin_exists && etc_exists;
+
+    serial::write_string(if ok {
+        "test_initramfs_children: OK\n"
+    } else {
+        "test_initramfs_children: FAIL\n"
+    });
+}
+
+pub fn test_initramfs_file_read() {
+    serial::write_string("Testing initramfs file read...\n");
+
+    let root = initramfs::create_initramfs_root();
+    let root_lock = root.lock();
+    let hello = root_lock.lookup("hello.txt").unwrap();
+    drop(root_lock);
+
+    let hello_lock = hello.lock();
+    let mut buf = [0u8; 64];
+    let n = hello_lock.read(0, &mut buf).unwrap();
+    let content = core::str::from_utf8(&buf[..n]).unwrap();
+    let ok = content.contains("Hello from Rust Kernel");
+
+    serial::write_string(if ok {
+        "test_initramfs_file_read: OK\n"
+    } else {
+        "test_initramfs_file_read: FAIL\n"
+    });
+}
+
+pub fn test_initramfs_readdir() {
+    serial::write_string("Testing initramfs readdir...\n");
+
+    let root = initramfs::create_initramfs_root();
+    let root_lock = root.lock();
+
+    let entry0 = root_lock.readdir(0);
+    let entry1 = root_lock.readdir(1);
+    let entry2 = root_lock.readdir(2);
+    let entry3 = root_lock.readdir(3);
+    let entry4 = root_lock.readdir(4);
+
+    let ok = entry0.is_some()
+        && entry1.is_some()
+        && entry2.is_some()
+        && entry3.is_some()
+        && entry4.is_none();
+
+    serial::write_string(if ok {
+        "test_initramfs_readdir: OK\n"
+    } else {
+        "test_initramfs_readdir: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_root_creation() {
+    serial::write_string("Testing tmpfs root creation...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let root_lock = root.lock();
+
+    let ok = root_lock.name() == "/"
+        && root_lock.inode_type() == FileType::Directory
+        && root_lock.stat().st_ino > 0;
+
+    serial::write_string(if ok {
+        "test_tmpfs_root_creation: OK\n"
+    } else {
+        "test_tmpfs_root_creation: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_children() {
+    serial::write_string("Testing tmpfs children...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let root_lock = root.lock();
+
+    let tmp_exists = root_lock.lookup("tmp").is_some();
+    let var_exists = root_lock.lookup("var").is_some();
+    let dev_exists = root_lock.lookup("dev").is_some();
+    let proc_exists = root_lock.lookup("proc").is_some();
+
+    let ok = tmp_exists && var_exists && dev_exists && proc_exists;
+
+    serial::write_string(if ok {
+        "test_tmpfs_children: OK\n"
+    } else {
+        "test_tmpfs_children: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_mkdir() {
+    serial::write_string("Testing tmpfs mkdir...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let result = root_lock.mkdir("testdir", FilePermissions::default_directory());
+    let ok = result.is_some() && root_lock.lookup("testdir").is_some();
+
+    serial::write_string(if ok {
+        "test_tmpfs_mkdir: OK\n"
+    } else {
+        "test_tmpfs_mkdir: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_create_file() {
+    serial::write_string("Testing tmpfs create file...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let result = root_lock.create("testfile.txt", FilePermissions::default_file());
+    let ok = result.is_some() && root_lock.lookup("testfile.txt").is_some();
+
+    serial::write_string(if ok {
+        "test_tmpfs_create_file: OK\n"
+    } else {
+        "test_tmpfs_create_file: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_read_write() {
+    serial::write_string("Testing tmpfs read/write...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let file = root_lock.create("test.txt", FilePermissions::default_file());
+    let file = file.unwrap();
+    drop(root_lock);
+
+    let mut file_lock = file.lock();
+    let write_result = file_lock.write(0, b"Hello, tmpfs!");
+    drop(file_lock);
+
+    let read_result = file.lock().read(0, &mut [0u8; 64]);
+    let ok = write_result.is_ok() && read_result.is_ok();
+
+    serial::write_string(if ok {
+        "test_tmpfs_read_write: OK\n"
+    } else {
+        "test_tmpfs_read_write: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_unlink() {
+    serial::write_string("Testing tmpfs unlink...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let _ = root_lock.create("file.txt", FilePermissions::default_file());
+    let result = root_lock.unlink("file.txt");
+    let ok = result.is_ok() && root_lock.lookup("file.txt").is_none();
+
+    serial::write_string(if ok {
+        "test_tmpfs_unlink: OK\n"
+    } else {
+        "test_tmpfs_unlink: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_rmdir() {
+    serial::write_string("Testing tmpfs rmdir...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let _ = root_lock.mkdir("subdir", FilePermissions::default_directory());
+    let result = root_lock.rmdir("subdir");
+    let ok = result.is_ok() && root_lock.lookup("subdir").is_none();
+
+    serial::write_string(if ok {
+        "test_tmpfs_rmdir: OK\n"
+    } else {
+        "test_tmpfs_rmdir: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_readdir() {
+    serial::write_string("Testing tmpfs readdir...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let root_lock = root.lock();
+
+    let entry0 = root_lock.readdir(0);
+    let entry1 = root_lock.readdir(1);
+    let entry2 = root_lock.readdir(2);
+    let entry3 = root_lock.readdir(3);
+    let entry4 = root_lock.readdir(4);
+
+    let ok = entry0.is_some()
+        && entry1.is_some()
+        && entry2.is_some()
+        && entry3.is_some()
+        && entry4.is_none();
+
+    serial::write_string(if ok {
+        "test_tmpfs_readdir: OK\n"
+    } else {
+        "test_tmpfs_readdir: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_truncate() {
+    serial::write_string("Testing tmpfs truncate...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let file = root_lock
+        .create("test.txt", FilePermissions::default_file())
+        .unwrap();
+    drop(root_lock);
+
+    {
+        let mut file_lock = file.lock();
+        let _ = file_lock.write(0, b"0123456789");
+    }
+
+    let mut file_lock = file.lock();
+    let result = file_lock.truncate(5);
+    let size = file_lock.stat().st_size;
+    drop(file_lock);
+
+    let ok = result.is_ok() && size == 5;
+
+    serial::write_string(if ok {
+        "test_tmpfs_truncate: OK\n"
+    } else {
+        "test_tmpfs_truncate: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_symlink() {
+    serial::write_string("Testing tmpfs symlink...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let result = root_lock.symlink("target_file", "link_name");
+    let ok = result.is_ok() && root_lock.lookup("link_name").is_some();
+
+    serial::write_string(if ok {
+        "test_tmpfs_symlink: OK\n"
+    } else {
+        "test_tmpfs_symlink: FAIL\n"
+    });
+}
+
+pub fn test_tmpfs_readlink() {
+    serial::write_string("Testing tmpfs readlink...\n");
+
+    let root = tmpfs::create_tmpfs_root();
+    let mut root_lock = root.lock();
+
+    let _ = root_lock.symlink("target_path", "link_name");
+    drop(root_lock);
+
+    let link = root.lock().lookup("link_name").unwrap();
+    let link_content = link.lock().readlink();
+
+    let ok = link_content.is_some() && link_content.unwrap() == "target_path";
+
+    serial::write_string(if ok {
+        "test_tmpfs_readlink: OK\n"
+    } else {
+        "test_tmpfs_readlink: FAIL\n"
     });
 }

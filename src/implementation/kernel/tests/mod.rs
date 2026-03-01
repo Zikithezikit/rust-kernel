@@ -62,4 +62,19 @@ pub fn run_tests() {
     test_vfs::test_vfs_readdir();
     test_vfs::test_vfs_mount_unmount();
     test_vfs::test_vfs_walk_path();
+    test_vfs::test_initramfs_root_creation();
+    test_vfs::test_initramfs_children();
+    test_vfs::test_initramfs_file_read();
+    test_vfs::test_initramfs_readdir();
+    test_vfs::test_tmpfs_root_creation();
+    test_vfs::test_tmpfs_children();
+    test_vfs::test_tmpfs_mkdir();
+    test_vfs::test_tmpfs_create_file();
+    test_vfs::test_tmpfs_read_write();
+    test_vfs::test_tmpfs_unlink();
+    test_vfs::test_tmpfs_rmdir();
+    test_vfs::test_tmpfs_readdir();
+    test_vfs::test_tmpfs_truncate();
+    test_vfs::test_tmpfs_symlink();
+    test_vfs::test_tmpfs_readlink();
 }

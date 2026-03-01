@@ -1,32 +1,48 @@
-//! VFS inode cache and concrete inode implementations
+//! Tmpfs - Temporary Memory Filesystem
+//!
+//! An in-memory filesystem that stores files in RAM.
 
 use super::inode::{
-    DirEntry, FileMode, FileModeBit, FileModeKind, FilePermissions, FileType, Inode, InodeRef,
-    Stat, VfsError, BLOCK_SIZE, SECTOR_SIZE,
+    DirEntry, FileModeKind, FilePermissions, FileType, Inode, InodeRef, Stat, VfsError, BLOCK_SIZE,
+    SECTOR_SIZE,
 };
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use spin::Mutex;
 
-#[derive(Clone)]
-pub struct InodeImpl {
-    pub inode_type: FileType,
-    pub permissions: FilePermissions,
-    pub stat: Stat,
-    pub name: String,
-    pub parent: Option<InodeRef>,
-    pub children: Vec<InodeRef>,
-    pub data: Vec<u8>,
+const DEFAULT_ROOT_UID: u32 = 0;
+const DEFAULT_ROOT_GID: u32 = 0;
+const DIR_NLINK: u32 = 2;
+const FILE_NLINK: u32 = 1;
+
+pub struct TmpfsInode {
+    inode_type: FileType,
+    permissions: FilePermissions,
+    stat: Stat,
+    name: String,
+    parent: Option<InodeRef>,
+    children: Vec<InodeRef>,
+    data: Vec<u8>,
 }
 
 static INODE_COUNTER: Mutex<u64> = Mutex::new(1);
 
-impl InodeImpl {
+impl TmpfsInode {
     pub fn new(name: &str, inode_type: FileType) -> Self {
         let mut counter = INODE_COUNTER.lock();
         let ino = *counter;
         *counter += 1;
+
+        let mode = match inode_type {
+            FileType::Directory => FileModeKind::Directory.bits(),
+            _ => FileModeKind::RegularFile.bits(),
+        };
+        let nlink = if inode_type == FileType::Directory {
+            DIR_NLINK
+        } else {
+            FILE_NLINK
+        };
 
         Self {
             inode_type,
@@ -37,18 +53,10 @@ impl InodeImpl {
             },
             stat: Stat {
                 st_ino: ino,
-                st_mode: if inode_type == FileType::Directory {
-                    FileModeKind::Directory.bits()
-                } else {
-                    FileModeKind::RegularFile.bits()
-                },
-                st_nlink: if inode_type == FileType::Directory {
-                    2
-                } else {
-                    1
-                },
-                st_uid: 0,
-                st_gid: 0,
+                st_mode: mode,
+                st_nlink: nlink,
+                st_uid: DEFAULT_ROOT_UID,
+                st_gid: DEFAULT_ROOT_GID,
                 st_size: 0,
                 st_blksize: BLOCK_SIZE,
                 st_blocks: 0,
@@ -67,7 +75,7 @@ impl InodeImpl {
     }
 }
 
-impl Inode for InodeImpl {
+impl Inode for TmpfsInode {
     fn inode_type(&self) -> FileType {
         self.inode_type
     }
@@ -127,7 +135,7 @@ impl Inode for InodeImpl {
             return None;
         }
 
-        let mut child_inode = InodeImpl::new(name, FileType::Directory);
+        let mut child_inode = TmpfsInode::new(name, FileType::Directory);
         child_inode.set_permissions(perms);
 
         let child_ref: InodeRef = Arc::new(Mutex::new(child_inode));
@@ -145,7 +153,7 @@ impl Inode for InodeImpl {
             return None;
         }
 
-        let mut file_inode = InodeImpl::new(name, FileType::RegularFile);
+        let mut file_inode = TmpfsInode::new(name, FileType::RegularFile);
         file_inode.set_permissions(perms);
 
         let file_ref: InodeRef = Arc::new(Mutex::new(file_inode));
@@ -277,7 +285,7 @@ impl Inode for InodeImpl {
             return Err(VfsError::Exists);
         }
 
-        let mut link_inode = InodeImpl::new(name, FileType::Symlink);
+        let mut link_inode = TmpfsInode::new(name, FileType::Symlink);
         link_inode.set_data(target.as_bytes().to_vec());
         link_inode.stat.st_mode = FileModeKind::Symlink.bits();
 
@@ -292,4 +300,25 @@ impl Inode for InodeImpl {
         }
         String::from_utf8(self.data.clone()).ok()
     }
+}
+
+pub fn create_tmpfs_root() -> InodeRef {
+    let mut root = TmpfsInode::new("/", FileType::Directory);
+
+    let mut tmp_dir = TmpfsInode::new("tmp", FileType::Directory);
+    let mut var_dir = TmpfsInode::new("var", FileType::Directory);
+    let mut dev_dir = TmpfsInode::new("dev", FileType::Directory);
+    let mut proc_dir = TmpfsInode::new("proc", FileType::Directory);
+
+    let tmp_ref: InodeRef = Arc::new(Mutex::new(tmp_dir));
+    let var_ref: InodeRef = Arc::new(Mutex::new(var_dir));
+    let dev_ref: InodeRef = Arc::new(Mutex::new(dev_dir));
+    let proc_ref: InodeRef = Arc::new(Mutex::new(proc_dir));
+
+    root.children.push(tmp_ref);
+    root.children.push(var_ref);
+    root.children.push(dev_ref);
+    root.children.push(proc_ref);
+
+    Arc::new(Mutex::new(root))
 }

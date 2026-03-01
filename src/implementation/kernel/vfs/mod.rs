@@ -10,10 +10,12 @@
 
 pub mod dentry;
 pub mod file;
+pub mod initramfs;
 pub mod inode;
 pub mod inode_impl;
 pub mod mount;
 pub mod superblock;
+pub mod tmpfs;
 
 pub fn init() -> Result<(), ()> {
     Ok(())
