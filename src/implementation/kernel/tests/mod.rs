@@ -4,6 +4,7 @@ mod test_pmm;
 mod test_syscall;
 mod test_task;
 mod test_tss;
+mod test_vfs;
 mod test_vmm;
 
 pub fn run_tests() {
@@ -40,4 +41,25 @@ pub fn run_tests() {
     test_tss::test_tss_double_fault_stack();
     test_tss::test_gdt_has_code_segment();
     test_tss::test_tss_ist_index();
+    test_vfs::test_vfs_inode_creation();
+    test_vfs::test_vfs_directory_inode();
+    test_vfs::test_vfs_inode_mkdir();
+    test_vfs::test_vfs_inode_create_file();
+    test_vfs::test_vfs_inode_read_write();
+    test_vfs::test_vfs_inode_unlink();
+    test_vfs::test_vfs_inode_rmdir();
+    test_vfs::test_vfs_file_table();
+    test_vfs::test_vfs_file_read_write();
+    test_vfs::test_vfs_mount_namespace();
+    test_vfs::test_vfs_dentry();
+    test_vfs::test_vfs_dentry_cache();
+    test_vfs::test_vfs_super_block();
+    test_vfs::test_vfs_symlink();
+    test_vfs::test_vfs_readlink();
+    test_vfs::test_vfs_file_seek();
+    test_vfs::test_vfs_file_truncate();
+    test_vfs::test_vfs_file_dup();
+    test_vfs::test_vfs_readdir();
+    test_vfs::test_vfs_mount_unmount();
+    test_vfs::test_vfs_walk_path();
 }

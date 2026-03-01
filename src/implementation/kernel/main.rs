@@ -11,6 +11,7 @@ mod panic;
 mod syscall;
 mod task;
 mod tests;
+mod vfs;
 
 use drivers::serial;
 use memory::allocator::PmmAllocator;
@@ -60,6 +61,7 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     log_on_err(arch::init::load_tss(), "TSS load failed");
     halt_on_err(arch::init::init_interrupts(), "Interrupts init failed");
     halt_on_err(task::init::init(), "Task init failed");
+    serial::write_string("VFS initialized!\n");
 
     halt();
 }
