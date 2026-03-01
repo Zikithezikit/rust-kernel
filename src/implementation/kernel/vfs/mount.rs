@@ -215,6 +215,6 @@ pub fn init_mount_namespace(root: InodeRef) {
     *ns = Some(MountNamespace::new(root));
 }
 
-pub fn get_mount_namespace() -> Option<spin::MutexGuard<'static, Option<MountNamespace>>> {
-    Some(MOUNT_NAMESPACE.lock())
+pub fn get_mount_namespace() -> spin::MutexGuard<'static, Option<MountNamespace>> {
+    MOUNT_NAMESPACE.lock()
 }

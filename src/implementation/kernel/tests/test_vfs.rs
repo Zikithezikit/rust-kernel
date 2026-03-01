@@ -202,19 +202,21 @@ pub fn test_vfs_dentry() {
     });
 }
 
-pub fn test_vfs_dentry_cache() {
-    serial::write_string("Testing VFS dentry...\n");
+pub fn test_vfs_dentry_lookup() {
+    serial::write_string("Testing VFS dentry lookup...\n");
 
     let inode: InodeRef = Arc::new(Mutex::new(InodeImpl::new("test", FileType::RegularFile)));
 
     let dentry = Arc::new(Mutex::new(Dentry::new("test", Some(inode), None)));
 
-    let ok = dentry.lock().d_is_positive();
+    let lookup_result = dentry.lock().lookup("nonexistent");
+
+    let ok = lookup_result.is_none();
 
     serial::write_string(if ok {
-        "test_vfs_dentry: OK\n"
+        "test_vfs_dentry_lookup: OK\n"
     } else {
-        "test_vfs_dentry: FAIL\n"
+        "test_vfs_dentry_lookup: FAIL\n"
     });
 }
 

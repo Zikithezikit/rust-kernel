@@ -139,17 +139,17 @@ impl File {
             SeekFrom::End(offset) => {
                 if offset < 0 {
                     if (-offset) as u64 > file_size {
-                        return Err(VfsError::InvalidFilename);
+                        return Err(VfsError::InvalidSeek);
                     }
-                    file_size - ((-offset) as u64)
+                    file_size.saturating_sub((-offset) as u64)
                 } else {
-                    file_size + (offset as u64)
+                    file_size.saturating_add(offset as u64)
                 }
             }
             SeekFrom::Current(offset) => {
                 if offset < 0 {
                     if (-offset) as u64 > self.offset {
-                        return Err(VfsError::InvalidFilename);
+                        return Err(VfsError::InvalidSeek);
                     }
                     self.offset - ((-offset) as u64)
                 } else {

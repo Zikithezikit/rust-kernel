@@ -52,7 +52,7 @@ pub fn run_tests() {
     test_vfs::test_vfs_file_read_write();
     test_vfs::test_vfs_mount_namespace();
     test_vfs::test_vfs_dentry();
-    test_vfs::test_vfs_dentry_cache();
+    test_vfs::test_vfs_dentry_lookup();
     test_vfs::test_vfs_super_block();
     test_vfs::test_vfs_symlink();
     test_vfs::test_vfs_readlink();

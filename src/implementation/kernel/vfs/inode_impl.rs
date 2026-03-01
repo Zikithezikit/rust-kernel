@@ -1,7 +1,8 @@
 //! VFS inode cache and concrete inode implementations
 
 use super::inode::{
-    DirEntry, FileMode, FilePermissions, FileType, Inode, InodeRef, SeekFrom, Stat, VfsError,
+    DirEntry, FileMode, FileModeBit, FileModeKind, FilePermissions, FileType, Inode, InodeRef,
+    Stat, VfsError, BLOCK_SIZE, SECTOR_SIZE,
 };
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -14,7 +15,7 @@ pub struct InodeImpl {
     pub permissions: FilePermissions,
     pub stat: Stat,
     pub name: String,
-    pub parent: Option<InodeRef>,
+    pub parent: Option<ch>,
     pub children: Vec<InodeRef>,
     pub data: Vec<u8>,
 }
@@ -37,9 +38,9 @@ impl InodeImpl {
             stat: Stat {
                 st_ino: ino,
                 st_mode: if inode_type == FileType::Directory {
-                    0o40755
+                    FileModeKind::Directory.bits()
                 } else {
-                    0o100644
+                    FileModeKind::RegularFile.bits()
                 },
                 st_nlink: if inode_type == FileType::Directory {
                     2
@@ -49,7 +50,7 @@ impl InodeImpl {
                 st_uid: 0,
                 st_gid: 0,
                 st_size: 0,
-                st_blksize: 4096,
+                st_blksize: BLOCK_SIZE,
                 st_blocks: 0,
             },
             name: name.to_string(),
@@ -62,7 +63,7 @@ impl InodeImpl {
     pub fn set_data(&mut self, data: Vec<u8>) {
         self.data = data;
         self.stat.st_size = self.data.len() as u64;
-        self.stat.st_blocks = (self.stat.st_size + 511) / 512;
+        self.stat.st_blocks = (self.stat.st_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
     }
 }
 
@@ -129,12 +130,8 @@ impl Inode for InodeImpl {
         let mut child_inode = InodeImpl::new(name, FileType::Directory);
         child_inode.set_permissions(perms);
 
-        let parent_ref: InodeRef = Arc::new(Mutex::new(self.clone()));
-        child_inode.set_parent(Some(parent_ref));
-
         let child_ref: InodeRef = Arc::new(Mutex::new(child_inode));
         self.children.push(child_ref.clone());
-        self.stat.st_nlink += 1;
 
         Some(child_ref)
     }
@@ -150,9 +147,6 @@ impl Inode for InodeImpl {
 
         let mut file_inode = InodeImpl::new(name, FileType::RegularFile);
         file_inode.set_permissions(perms);
-
-        let parent_ref: InodeRef = Arc::new(Mutex::new(self.clone()));
-        file_inode.set_parent(Some(parent_ref));
 
         let file_ref: InodeRef = Arc::new(Mutex::new(file_inode));
         self.children.push(file_ref.clone());
@@ -198,9 +192,12 @@ impl Inode for InodeImpl {
             return Err(VfsError::NotADirectory);
         }
 
+        if !child_lock.is_empty() {
+            return Err(VfsError::NotEmpty);
+        }
+
         drop(child_lock);
         self.children.remove(pos);
-        self.stat.st_nlink = self.stat.st_nlink.saturating_sub(1);
         Ok(())
     }
 
@@ -234,7 +231,7 @@ impl Inode for InodeImpl {
 
         self.data[start..start + buf.len()].copy_from_slice(buf);
         self.stat.st_size = self.data.len() as u64;
-        self.stat.st_blocks = (self.stat.st_size + 511) / 512;
+        self.stat.st_blocks = (self.stat.st_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
         Ok(buf.len())
     }
@@ -260,10 +257,14 @@ impl Inode for InodeImpl {
         })
     }
 
+    fn is_empty(&self) -> bool {
+        self.children.is_empty()
+    }
+
     fn truncate(&mut self, size: u64) -> Result<(), VfsError> {
         self.data.resize(size as usize, 0);
         self.stat.st_size = size;
-        self.stat.st_blocks = (size + 511) / 512;
+        self.stat.st_blocks = (size + SECTOR_SIZE - 1) / SECTOR_SIZE;
         Ok(())
     }
 
@@ -278,7 +279,7 @@ impl Inode for InodeImpl {
 
         let mut link_inode = InodeImpl::new(name, FileType::Symlink);
         link_inode.set_data(target.as_bytes().to_vec());
-        link_inode.stat.st_mode = 0o120777;
+        link_inode.stat.st_mode = FileModeKind::Symlink.bits();
 
         let link_ref: InodeRef = Arc::new(Mutex::new(link_inode));
         self.children.push(link_ref);

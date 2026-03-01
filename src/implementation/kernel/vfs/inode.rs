@@ -6,6 +6,9 @@ use alloc::string::ToString;
 use alloc::sync::Arc;
 use spin::Mutex;
 
+pub const SECTOR_SIZE: u64 = 512;
+pub const BLOCK_SIZE: u32 = 4096;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
     RegularFile,
@@ -15,6 +18,52 @@ pub enum FileType {
     Fifo,
     Socket,
     Symlink,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileModeKind {
+    RegularFile,
+    Directory,
+    Symlink,
+}
+
+impl FileModeKind {
+    pub const fn bits(self) -> u16 {
+        match self {
+            FileModeKind::RegularFile => 0o100644,
+            FileModeKind::Directory => 0o40755,
+            FileModeKind::Symlink => 0o120777,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileModeBit {
+    OwnerRead,
+    OwnerWrite,
+    OwnerExec,
+    GroupRead,
+    GroupWrite,
+    GroupExec,
+    OtherRead,
+    OtherWrite,
+    OtherExec,
+}
+
+impl FileModeBit {
+    pub const fn bit(self) -> u16 {
+        match self {
+            FileModeBit::OwnerRead => 0o400,
+            FileModeBit::OwnerWrite => 0o200,
+            FileModeBit::OwnerExec => 0o100,
+            FileModeBit::GroupRead => 0o040,
+            FileModeBit::GroupWrite => 0o020,
+            FileModeBit::GroupExec => 0o010,
+            FileModeBit::OtherRead => 0o004,
+            FileModeBit::OtherWrite => 0o002,
+            FileModeBit::OtherExec => 0o001,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,31 +116,31 @@ impl FileMode {
     pub const fn from_permissions(perms: &FilePermissions) -> Self {
         let mut mode: u16 = 0;
         if perms.owner_read {
-            mode |= 0o400;
+            mode |= FileModeBit::OwnerRead.bit();
         }
         if perms.owner_write {
-            mode |= 0o200;
+            mode |= FileModeBit::OwnerWrite.bit();
         }
         if perms.owner_exec {
-            mode |= 0o100;
+            mode |= FileModeBit::OwnerExec.bit();
         }
         if perms.group_read {
-            mode |= 0o040;
+            mode |= FileModeBit::GroupRead.bit();
         }
         if perms.group_write {
-            mode |= 0o020;
+            mode |= FileModeBit::GroupWrite.bit();
         }
         if perms.group_exec {
-            mode |= 0o010;
+            mode |= FileModeBit::GroupExec.bit();
         }
         if perms.other_read {
-            mode |= 0o004;
+            mode |= FileModeBit::OtherRead.bit();
         }
         if perms.other_write {
-            mode |= 0o002;
+            mode |= FileModeBit::OtherWrite.bit();
         }
         if perms.other_exec {
-            mode |= 0o001;
+            mode |= FileModeBit::OtherExec.bit();
         }
         Self(mode)
     }
@@ -150,6 +199,9 @@ pub trait Inode: Send + Sync {
     fn readdir(&self, _offset: u64) -> Option<DirEntry> {
         None
     }
+    fn is_empty(&self) -> bool {
+        false
+    }
     fn truncate(&mut self, _size: u64) -> Result<(), VfsError> {
         Err(VfsError::OperationNotSupported)
     }
@@ -157,8 +209,18 @@ pub trait Inode: Send + Sync {
         Ok(())
     }
     fn chmod(&mut self, mode: FileMode) -> Result<(), VfsError> {
-        self.set_permissions(FilePermissions::default_file());
-        let _ = mode;
+        let perms_with_mode = FilePermissions {
+            owner_read: mode.0 & FileModeBit::OwnerRead.bit() != 0,
+            owner_write: mode.0 & FileModeBit::OwnerWrite.bit() != 0,
+            owner_exec: mode.0 & FileModeBit::OwnerExec.bit() != 0,
+            group_read: mode.0 & FileModeBit::GroupRead.bit() != 0,
+            group_write: mode.0 & FileModeBit::GroupWrite.bit() != 0,
+            group_exec: mode.0 & FileModeBit::GroupExec.bit() != 0,
+            other_read: mode.0 & FileModeBit::OtherRead.bit() != 0,
+            other_write: mode.0 & FileModeBit::OtherWrite.bit() != 0,
+            other_exec: mode.0 & FileModeBit::OtherExec.bit() != 0,
+        };
+        self.set_permissions(perms_with_mode);
         Ok(())
     }
     fn chown(&mut self, uid: u32, gid: u32) -> Result<(), VfsError> {
@@ -197,6 +259,7 @@ pub enum VfsError {
     FileTooLarge,
     NoSpaceLeft,
     InvalidFilename,
+    InvalidSeek,
     OperationNotSupported,
     IoError,
     Busy,
@@ -214,6 +277,7 @@ impl core::fmt::Display for VfsError {
             VfsError::FileTooLarge => write!(f, "File too large"),
             VfsError::NoSpaceLeft => write!(f, "No space left on device"),
             VfsError::InvalidFilename => write!(f, "Invalid filename"),
+            VfsError::InvalidSeek => write!(f, "Invalid seek position"),
             VfsError::OperationNotSupported => write!(f, "Operation not supported"),
             VfsError::IoError => write!(f, "I/O error"),
             VfsError::Busy => write!(f, "Resource busy"),
