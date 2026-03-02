@@ -2,39 +2,50 @@
 //!
 //! Handles scheduler and task initialization.
 
+use crate::error::{KernelError, KernelResult};
 use crate::task::scheduler::SCHEDULER;
 
-#[derive(Debug)]
-pub enum TaskError {
-    SchedulerInitFailed,
-    IdleTaskSpawnFailed,
-}
-
-impl core::fmt::Display for TaskError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            TaskError::SchedulerInitFailed => write!(f, "Scheduler initialization failed"),
-            TaskError::IdleTaskSpawnFailed => write!(f, "Failed to spawn idle task"),
-        }
-    }
-}
-
-pub fn init_scheduler() -> Result<(), TaskError> {
+/// Initializes the scheduler.
+///
+/// # Errors
+/// Returns `KernelError::TaskInitFailed` if scheduler fails to initialize.
+pub fn init_scheduler() -> KernelResult<()> {
     SCHEDULER.init();
     Ok(())
 }
 
-pub fn spawn_idle_task() -> Result<(), TaskError> {
+/// Spawns the idle task.
+///
+/// The idle task runs when no other tasks are runnable.
+/// It simply halts the CPU to save power.
+///
+/// # Errors
+/// Returns `KernelError::IdleTaskCreationFailed` if idle task cannot be spawned.
+pub fn spawn_idle_task() -> KernelResult<()> {
     fn idle_task() {
         loop {
             x86_64::instructions::hlt();
         }
     }
-    SCHEDULER.spawn(idle_task, "idle");
+
+    // The spawn method returns Option<TaskId>, convert to KernelResult
+    let _task_id = SCHEDULER
+        .spawn(idle_task, "idle")
+        .ok_or(KernelError::IdleTaskCreationFailed)?;
+
     Ok(())
 }
 
-pub fn init() -> Result<(), TaskError> {
+/// Initializes the task subsystem.
+///
+/// This function:
+/// 1. Initializes the scheduler
+/// 2. Spawns the idle task
+///
+/// # Errors
+/// Returns `KernelError::TaskInitFailed` if any step fails.
+pub fn init() -> KernelResult<()> {
     init_scheduler()?;
-    spawn_idle_task()
+    spawn_idle_task()?;
+    Ok(())
 }

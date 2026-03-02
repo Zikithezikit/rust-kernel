@@ -129,7 +129,11 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     use crate::syscall::handler::increment_ticks;
 
     increment_ticks();
-    SCHEDULER.preemptive_tick();
+
+    // TODO: Enable preemptive scheduling once context switching is properly implemented
+    // For now, just increment ticks without switching
+    // SCHEDULER.preemptive_tick();
+
     pic_end_of_interrupt(IrqNumber::SystemTimer as u8);
 }
 

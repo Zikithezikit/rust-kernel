@@ -7,7 +7,15 @@ mod test_tss;
 mod test_vfs;
 mod test_vmm;
 
+use crate::drivers::serial;
+
+/// Runs all kernel tests.
+///
+/// NOTE: This function is currently not called from main() due to a kernel
+/// reset issue that occurs after test completion. This needs to be investigated.
 pub fn run_tests() {
+    serial::write_string("Running tests...\n");
+
     test_allocator::test_vec_allocation();
     test_allocator::test_box_allocation();
     test_allocator::test_string_allocation();
@@ -77,4 +85,6 @@ pub fn run_tests() {
     test_vfs::test_tmpfs_truncate();
     test_vfs::test_tmpfs_symlink();
     test_vfs::test_tmpfs_readlink();
+
+    serial::write_string("All tests completed!\n");
 }

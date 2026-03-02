@@ -212,4 +212,42 @@ impl Scheduler {
         let current_running = if self.current.lock().is_some() { 1 } else { 0 };
         queue_len + current_running
     }
+
+    /// Runs the scheduler loop.
+    ///
+    /// This is the main entry point for task scheduling. It keeps the kernel alive
+    /// by handling timer interrupts and other events.
+    pub fn run(&self) -> ! {
+        use crate::drivers::serial;
+
+        serial::write_string("Scheduler running...\n");
+
+        // Enable interrupts and wait for timer ticks
+        x86_64::instructions::interrupts::enable();
+
+        // Main idle loop - this should never exit
+        loop {
+            x86_64::instructions::hlt();
+        }
+    }
+
+    /// Internal schedule method (non-locking version for run loop)
+    fn schedule_internal(&self) -> Option<Arc<Mutex<Task>>> {
+        let mut queue = self.run_queue.lock();
+
+        if queue.is_empty() {
+            return None;
+        }
+
+        let task = queue.pop_front()?;
+        {
+            let mut t = task.lock();
+            if t.state == TaskState::Ready {
+                t.set_running();
+            }
+        }
+        *self.current.lock() = Some(task.clone());
+
+        Some(task)
+    }
 }

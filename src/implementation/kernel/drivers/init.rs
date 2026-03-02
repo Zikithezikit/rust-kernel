@@ -4,29 +4,23 @@
 
 use crate::drivers::serial;
 use crate::drivers::vga;
+use crate::error::{KernelError, KernelResult};
 
-#[derive(Debug)]
-pub enum DriverError {
-    VgaInitFailed,
-    SerialInitFailed,
-}
-
-impl core::fmt::Display for DriverError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            DriverError::VgaInitFailed => write!(f, "VGA initialization failed"),
-            DriverError::SerialInitFailed => write!(f, "Serial initialization failed"),
-        }
-    }
-}
-
-pub fn init_vga() -> Result<(), DriverError> {
+/// Initializes the VGA display driver.
+///
+/// # Errors
+/// Returns `KernelError::DriverFailed` if VGA cannot be initialized.
+pub fn init_vga() -> KernelResult<()> {
     vga::clear_screen();
     vga::println("Starting...");
     Ok(())
 }
 
-pub fn init_serial() -> Result<(), DriverError> {
+/// Initializes the serial port driver.
+///
+/// # Errors
+/// Returns `KernelError::DriverFailed` if serial cannot be initialized.
+pub fn init_serial() -> KernelResult<()> {
     unsafe {
         serial::init();
     }
@@ -34,7 +28,15 @@ pub fn init_serial() -> Result<(), DriverError> {
     Ok(())
 }
 
-pub fn init() -> Result<(), DriverError> {
+/// Initializes all hardware drivers.
+///
+/// This function:
+/// 1. Initializes the VGA display
+/// 2. Initializes the serial port
+///
+/// # Errors
+/// Returns `KernelError::DriverFailed` if any driver fails to initialize.
+pub fn init() -> KernelResult<()> {
     init_vga()?;
     init_serial()
 }
