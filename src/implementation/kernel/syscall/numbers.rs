@@ -12,7 +12,7 @@ pub type SyscallResult = isize;
 pub type SyscallFn = fn(usize, usize, usize, usize, usize, usize) -> SyscallResult;
 
 /// Maximum number of syscalls
-pub const NR_syscalls: usize = 128;
+pub const NR_SYSCALLS: usize = 128;
 
 /// Standard file descriptors
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

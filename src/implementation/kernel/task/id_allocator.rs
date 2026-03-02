@@ -145,6 +145,19 @@ impl IdAllocator {
 
         self.bitmap[idx].load(Ordering::Relaxed) & mask != 0
     }
+
+    /// Resets the allocator to its initial state
+    ///
+    /// Clears all allocated IDs and resets the next ID hint.
+    /// Safe to call between tests to allow reusing all IDs.
+    pub unsafe fn reset(&self) {
+        for idx in 0..BITMAP_ARRAY_SIZE {
+            self.bitmap[idx].store(0, core::sync::atomic::Ordering::Relaxed);
+        }
+
+        self.allocated.store(0, core::sync::atomic::Ordering::Relaxed);
+        self.next_id.store(1, core::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 /// Global task ID allocator

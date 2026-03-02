@@ -1,12 +1,12 @@
 use crate::drivers::serial;
 use crate::syscall::handler::{get_ticks, increment_ticks, SYSCALL_TABLE};
-use crate::syscall::numbers::{Errno, FileDescriptor, NR_syscalls, SyscallNumber, SyscallResult};
+use crate::syscall::numbers::{Errno, FileDescriptor, NR_SYSCALLS, SyscallNumber, SyscallResult};
 
 pub fn test_syscall_table_initialized() {
     serial::write_string("Testing syscall table initialized...\n");
 
     let mut count: usize = 0;
-    for i in 0..NR_syscalls {
+    for i in 0..NR_SYSCALLS {
         if SYSCALL_TABLE[i].is_some() {
             count += 1;
         }

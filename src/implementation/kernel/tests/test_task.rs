@@ -290,6 +290,7 @@ pub fn test_scheduler_tick_time_slice() {
     } else {
         serial::write_string("scheduler_timeslice: FAIL (could not schedule)\n");
     }
+
 }
 
 pub fn test_scheduler_preemptive_tick() {

@@ -250,4 +250,30 @@ impl Scheduler {
 
         Some(task)
     }
+
+    /// Resets the scheduler to a clean state.
+    ///
+    /// This should be called before running each scheduler test
+    /// to avoid leftover tasks, locks, or IDs from previous tests.
+    pub fn reset(&self) {
+        // Clear the run queue
+        let mut runing_queue = self.run_queue.lock();
+        runing_queue.clear();
+        drop(runing_queue);
+
+        // Clear the current task
+        let mut current = self.current.lock();
+        *current = None;
+        drop(current);
+
+        // Reset the initialized flag (optional, if needed for tests)
+        let mut init = self.initialized.lock();
+        *init = false;
+        drop(init);
+
+        // Reset the task ID allocator
+        unsafe { TASK_ID_ALLOCATOR.reset() };
+
+        crate::drivers::serial::write_string("Scheduler reset complete\n");
+    }
 }
