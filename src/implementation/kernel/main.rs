@@ -30,13 +30,6 @@ fn halt() -> ! {
 }
 
 #[inline(always)]
-fn log_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
-    if let Err(e) = result {
-        serial::write_string(&alloc::format!("{}: {}\n", msg, e));
-    }
-}
-
-#[inline(always)]
 fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
     if let Err(e) = result {
         serial::write_string(&alloc::format!("{}: {}\n", msg, e));
@@ -66,11 +59,7 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     // Initialize TSS first
     halt_on_err(arch::init::init_tss(), "TSS init failed");
 
-    // NOTE: Tests are temporarily disabled due to kernel reset issue after test completion
-    // This needs to be investigated separately
-    serial::write_string("Tests disabled for now\n");
-
-    // Load TSS and initialize interrupts
+    // Load TSS and initialize interrupts FIRST
     halt_on_err(arch::init::load_tss(), "TSS load failed");
     halt_on_err(arch::init::init_interrupts(), "Interrupts init failed");
 
@@ -79,7 +68,31 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     arch::init::enable_interrupts();
     serial::write_string("Interrupts enabled!\n");
 
-    // Initialize VFS (placeholder - will be expanded)
+    // Run kernel tests AFTER interrupts are enabled
+    serial::write_string("=== Running kernel tests ===\n");
+
+    // Basic tests
+    tests::test_allocator::test_vec_allocation();
+    tests::test_allocator::test_box_allocation();
+    tests::test_allocator::test_string_allocation();
+    tests::test_allocator::test_multiple_allocations();
+    tests::test_panic::test_panic_constants();
+    tests::test_panic::test_serial_hex_output();
+    tests::test_pmm::test_pmm_initialized();
+    tests::test_pmm::test_pmm_allocate_single_page();
+    tests::test_pmm::test_pmm_allocate_multiple_pages();
+    tests::test_pmm::test_pmm_stress();
+
+    // VFS tests
+    tests::test_vfs::test_vfs_inode_creation();
+    tests::test_vfs::test_vfs_directory_inode();
+    tests::test_vfs::test_vfs_inode_mkdir();
+    tests::test_vfs::test_vfs_inode_create_file();
+    tests::test_vfs::test_vfs_inode_read_write();
+
+    serial::write_string("=== Tests completed ===\n");
+
+    // Initialize VFS
     serial::write_string("VFS initialized!\n");
 
     // Run the scheduler - this is the main kernel loop

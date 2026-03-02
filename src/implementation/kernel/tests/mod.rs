@@ -1,11 +1,11 @@
-mod test_allocator;
-mod test_panic;
-mod test_pmm;
-mod test_syscall;
-mod test_task;
-mod test_tss;
-mod test_vfs;
-mod test_vmm;
+pub mod test_allocator;
+pub mod test_panic;
+pub mod test_pmm;
+pub mod test_syscall;
+pub mod test_task;
+pub mod test_tss;
+pub mod test_vfs;
+pub mod test_vmm;
 
 use crate::drivers::serial;
 
