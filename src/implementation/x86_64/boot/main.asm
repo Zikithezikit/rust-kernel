@@ -86,19 +86,19 @@ check_long_mode:
 
 setup_page_tables:
     mov eax, page_table_l3
-    or eax, 0b11 ; present, writeable
+    or eax, 0b11 ; present + writeable
     mov [page_table_l4], eax
 
     mov eax, page_table_l2
-    or eax, 0b11 ; present, writeable
+    or eax, 0b11 ; present + writeable
     mov [page_table_l3], eax
 
-    mov ecx, 0 ; counter
+    ; L2 → memory (2 MiB huge pages)
+    mov ecx, 0
 .loop:
-
-    mov eax, 0x200000 ; 2MiB
+    mov eax, 0x200000 ; 2 MiB
     mul ecx
-    or eax, 0b10000011 ; present, writeable, huge page
+    or eax, 0b10000011 ; present + writeable + huge page
     mov [page_table_l2 + ecx * 8], eax
 
     inc ecx ; increment counter
