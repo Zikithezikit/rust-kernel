@@ -85,6 +85,7 @@ pub fn run_tests() {
     test_task::test_task_is_runnable();
 
     // Scheduler tick & preemptive tests
+    SCHEDULER.reset(); // I don't get why does this needs to be called.
     test_task::test_scheduler_tick();
     test_task::test_scheduler_tick_time_slice();
     test_task::test_scheduler_preemptive_tick();

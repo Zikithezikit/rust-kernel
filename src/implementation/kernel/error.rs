@@ -146,7 +146,7 @@ pub enum KernelError {
     TaskInitFailed(&'static str),
 
     // ========================================================================
-    // Architecture/硬件 errors
+    // Architecture/Hardware errors
     // ========================================================================
     /// TSS initialization failed
     TssInitFailed,
