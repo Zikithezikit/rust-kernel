@@ -56,19 +56,11 @@ fn init_submodules(multiboot_info: usize) {
     // Initialize the global kernel instance
     halt_on_err(kernel_module::init_kernel(), "Kernel init failed");
 
-    // Initialize TSS first
-    halt_on_err(arch::init::init_tss(), "TSS init failed");
-
-    // Load TSS and initialize interrupts FIRST
-    halt_on_err(arch::init::load_tss(), "TSS load failed");
-    halt_on_err(arch::init::init_interrupts(), "Interrupts init failed");
+    // Initialize Arch
+    halt_on_err(arch::init::init_arch(), "Arch init failed");
 
     // Init VFS
     halt_on_err(vfs::init(), "VFS init failed"); // This is currently empty.
-
-    // Enable CPU interrupts
-    arch::init::enable_interrupts(); // If this won't work the kernel will crash. #GP fault
-
 
 }
 

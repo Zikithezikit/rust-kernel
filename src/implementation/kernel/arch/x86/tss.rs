@@ -39,7 +39,10 @@ pub fn get_tss() -> Option<&'static TaskStateSegment> {
 /// # Errors
 /// Returns `KernelError::TssInitFailed` if:
 /// - Failed to allocate stack memory
-/// - GDT or TSS initialization fails
+/// 
+/// # Panics
+/// Will panic if either or fails
+/// - GDT or TSS initialization / appending to the GDT
 pub fn init() -> KernelResult<()> {
     let stack_addr = PMM
         .allocate_pages(1)
