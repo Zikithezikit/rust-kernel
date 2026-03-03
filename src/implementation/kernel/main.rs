@@ -19,8 +19,6 @@ use drivers::serial;
 use kernel as kernel_module;
 use memory::allocator::PmmAllocator;
 
-use crate::error::KernelResult;
-
 #[global_allocator]
 static ALLOCATOR: PmmAllocator = PmmAllocator::new();
 
@@ -42,7 +40,6 @@ fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
 /// Init sub modules, this function can't fail so there's no return
 #[inline(always)]
 fn init_submodules(multiboot_info: usize) {
-
     // Initialize drivers first (VGA, serial)
     halt_on_err(drivers::init::init(), "Driver init failed");
     serial::write_string("Serial initialized!\n");
@@ -61,7 +58,6 @@ fn init_submodules(multiboot_info: usize) {
 
     // Init VFS
     halt_on_err(vfs::init(), "VFS init failed"); // This is currently empty.
-
 }
 
 /// This is the main function that is called from the assembly
@@ -74,15 +70,8 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     drivers::vga::println("This is my kernel.");
 
     tests::run_tests();
-    
 
     // Run the scheduler - this is the main kernel loop
     serial::write_string("Starting scheduler...\n");
     kernel_module::kernel().scheduler_mut().run();
-
-
-    // If scheduler returns (should never happen), halt
-    halt();
 }
-
-

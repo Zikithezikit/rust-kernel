@@ -17,8 +17,7 @@ pub mod mount;
 pub mod superblock;
 pub mod tmpfs;
 
-use crate::error::{KernelError, KernelResult};
-
+use crate::error::KernelResult;
 
 pub fn init() -> KernelResult<()> {
     Ok(())

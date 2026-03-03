@@ -2,7 +2,6 @@
 //!
 //! Defines the inode abstraction - the core metadata object in VFS
 
-use alloc::string::ToString;
 use alloc::sync::Arc;
 use spin::Mutex;
 

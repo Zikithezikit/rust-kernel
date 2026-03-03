@@ -20,7 +20,6 @@ extern "C" {
 #[link_section = ".bss"]
 pub static mut current_task_ptr: usize = 0;
 
-use crate::task::scheduler::SCHEDULER;
 use crate::task::task::Task;
 
 /// Switches to the given task
@@ -35,7 +34,7 @@ pub unsafe fn switch_to_task(task: &Task) {
     if task.state == crate::task::task::TaskState::New {
         // Set up initial stack frame for the task
         // We push the entry point as if it was called
-        let stack_top = task.kernel_stack;
+        let _stack_top = task.kernel_stack;
 
         // We need to write to the stack (careful: this is the physical address
         // in a real OS, we'd need proper page table mapping)

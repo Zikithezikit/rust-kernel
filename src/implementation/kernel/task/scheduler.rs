@@ -9,7 +9,7 @@ use alloc::sync::Arc;
 use spin::Mutex;
 
 use super::id_allocator::TASK_ID_ALLOCATOR;
-use super::task::{Task, TaskId, TaskState, DEFAULT_TIME_SLICE};
+use super::task::{Task, TaskId, TaskState};
 use crate::task::switch::current_task_ptr;
 
 /// Global scheduler instance
@@ -89,7 +89,7 @@ impl Scheduler {
     ///
     /// Moves current task to back of run queue if still runnable.
     pub fn tick(&self) {
-        let mut current = match self.current.lock().take() {
+        let current = match self.current.lock().take() {
             Some(t) => t,
             None => return,
         };
@@ -124,7 +124,7 @@ impl Scheduler {
     /// Called from timer interrupt. If current task's time slice expired,
     /// switches to next runnable task.
     pub fn preemptive_tick(&self) {
-        let mut current = match self.current.lock().take() {
+        let current = match self.current.lock().take() {
             Some(t) => t,
             None => return,
         };

@@ -7,7 +7,7 @@ pub mod test_tss;
 pub mod test_vfs;
 pub mod test_vmm;
 
-use crate::{drivers::serial, task::scheduler::SCHEDULER};
+use crate::drivers::serial;
 
 /// Runs all kernel tests.
 ///
@@ -66,7 +66,7 @@ pub fn run_tests() {
     serial::write_string("=== Syscall: OK ===\n");
 
     // =========================
-    // Task & Scheduler Tests  = This is currently commented out because we are still in a single thread kernel. when we try to context switch we corupt in the assembly code the stack pointer and so we crash the kernel. 
+    // Task & Scheduler Tests  = This is currently commented out because we are still in a single thread kernel. when we try to context switch we corupt in the assembly code the stack pointer and so we crash the kernel.
     // =========================
     // serial::write_string("\n=== Task & Scheduler Tests ===\n")
 
@@ -154,6 +154,4 @@ pub fn run_tests() {
 
     serial::write_string("All tests completed!\n");
     serial::write_string("=== Tests completed ===\n");
-
 }
-

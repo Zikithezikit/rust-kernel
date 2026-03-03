@@ -19,7 +19,7 @@ use spin::Mutex;
 use x86_64::structures::idt::InterruptStackFrame;
 
 pub use crate::syscall::numbers::{
-    Errno, FileDescriptor, NR_SYSCALLS, SyscallFn, SyscallNumber, SyscallResult,
+    Errno, FileDescriptor, SyscallFn, SyscallNumber, SyscallResult, NR_SYSCALLS,
 };
 
 /// Default time slice for forked tasks (in ticks)

@@ -2,7 +2,7 @@
 //!
 //! In Linux, dentry links inode names to inodes and is cached in the dentry cache
 
-use super::inode::{FileType, InodeRef};
+use super::inode::InodeRef;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;

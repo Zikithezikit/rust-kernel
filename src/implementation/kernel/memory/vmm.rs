@@ -21,7 +21,7 @@
 use alloc::format;
 use spin::Mutex;
 
-use crate::drivers::{serial, vga};
+use crate::drivers::serial;
 use crate::memory::pmm::PMM;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::InterruptStackFrame;
@@ -142,7 +142,7 @@ pub fn page_fault_handler(stack_frame: &InterruptStackFrame, error_code: u64) {
 /// * `fault_addr` - The virtual address that caused the fault
 /// * `write` - Whether this was a write access
 /// * `user` - Whether this was a user mode access
-fn handle_demand_page(fault_addr: usize, write: bool, user: bool) {
+fn handle_demand_page(fault_addr: usize, _write: bool, user: bool) {
     // For now, we only handle kernel page faults
     // User space faults would require more complex address space management
     if user {

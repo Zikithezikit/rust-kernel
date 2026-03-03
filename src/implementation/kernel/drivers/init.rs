@@ -3,16 +3,16 @@
 //! Handles initialization of hardware drivers: VGA and serial.
 
 use crate::drivers::serial;
-use crate::drivers::vga;
-use crate::error::{KernelError, KernelResult};
-
+use crate::error::KernelResult;
 
 /// Initializes the serial port driver.
 ///
 /// # Errors
 /// Returns `KernelError::DriverFailed` if serial cannot be initialized.
 pub fn init_serial() -> KernelResult<()> {
-    unsafe { serial::init()?; }
+    unsafe {
+        serial::init()?;
+    }
     serial::write_string("Kernel started\n");
     Ok(())
 }

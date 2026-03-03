@@ -1,37 +1,34 @@
 #![allow(dead_code)]
 
-use crate::memory::vmm;
 use crate::drivers::vga;
-use crate::task::scheduler::SCHEDULER;
-use crate::syscall::handler::handle_syscall;
 use crate::error::{KernelError, KernelResult};
+use crate::memory::vmm;
 
-
-use spin::Once;
-use spin::Mutex;
-use x86_64::instructions::port::Port;
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
+use spin::Mutex;
+use spin::Once;
+use x86_64::instructions::port::Port;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 static IDT: Once<InterruptDescriptorTable> = Once::new();
 static KEYBOARD: Mutex<Option<Keyboard<Us104Key, ScancodeSet1>>> = Mutex::new(None);
 
-const MASTER_CONTROL: u16         = 0x20;
-const MASTER_DATA: u16            = 0x21;
-const SLAVE_CONTROL: u16          = 0xA0;
-const SLAVE_DATA: u16             = 0xA1;
-const KEYBOARD_DATA_PORT: u16     = 0x60;
-const IRQ_BASE_MASTER: u8         = 32;
-const IRQ_BASE_SLAVE: u8          = 40;
-const PIC_INIT: u8                = 0x11;
-const PIC_ICW4_8086: u8           = 0x01;
-const SLAVE_IRQ_LINE: u8          = 0x04;
-const SLAVE_IDENTITY: u8          = 0x02;
-const END_OF_INTERRUPT: u8        = 0x20;
-const PIT_CHANNEL_0: u16          = 0x40;
-const PIT_COMMAND: u16            = 0x43;
+const MASTER_CONTROL: u16 = 0x20;
+const MASTER_DATA: u16 = 0x21;
+const SLAVE_CONTROL: u16 = 0xA0;
+const SLAVE_DATA: u16 = 0xA1;
+const KEYBOARD_DATA_PORT: u16 = 0x60;
+const IRQ_BASE_MASTER: u8 = 32;
+const IRQ_BASE_SLAVE: u8 = 40;
+const PIC_INIT: u8 = 0x11;
+const PIC_ICW4_8086: u8 = 0x01;
+const SLAVE_IRQ_LINE: u8 = 0x04;
+const SLAVE_IDENTITY: u8 = 0x02;
+const END_OF_INTERRUPT: u8 = 0x20;
+const PIT_CHANNEL_0: u16 = 0x40;
+const PIT_COMMAND: u16 = 0x43;
 const PIT_MODE_RATE_GENERATOR: u8 = 0x36;
-const SYSCALL_VECTOR: u8          = 0x80;  // Matches SyscallNumber::SysExit = 0 but int 0x80 is separate
+const SYSCALL_VECTOR: u8 = 0x80; // Matches SyscallNumber::SysExit = 0 but int 0x80 is separate
 
 #[derive(Clone, Copy)]
 pub enum IrqNumber {
@@ -82,9 +79,9 @@ pub fn init_idt() -> KernelResult<()> {
 /// Checking each time if it worked will just add overhead so no `KernelError` here
 pub unsafe fn init_pic() {
     let mut master_control = Port::new(MASTER_CONTROL);
-    let mut master_data    = Port::new(MASTER_DATA);
-    let mut slave_control  = Port::new(SLAVE_CONTROL);
-    let mut slave_data     = Port::new(SLAVE_DATA);
+    let mut master_data = Port::new(MASTER_DATA);
+    let mut slave_control = Port::new(SLAVE_CONTROL);
+    let mut slave_data = Port::new(SLAVE_DATA);
 
     master_control.write(PIC_INIT);
     slave_control.write(PIC_INIT);
@@ -100,12 +97,11 @@ pub unsafe fn init_pic() {
 
     master_data.write(0x00);
     slave_data.write(0x00);
-
 }
 
 /// There is also no way that I know of to check if the PIT inited correctly so again no `KernelError` here
 pub unsafe fn init_pit() {
-    let mut command  = Port::new(PIT_COMMAND);
+    let mut command = Port::new(PIT_COMMAND);
     let mut channel0 = Port::new(PIT_CHANNEL_0);
 
     command.write(PIT_MODE_RATE_GENERATOR);

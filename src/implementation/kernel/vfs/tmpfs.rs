@@ -305,10 +305,10 @@ impl Inode for TmpfsInode {
 pub fn create_tmpfs_root() -> InodeRef {
     let mut root = TmpfsInode::new("/", FileType::Directory);
 
-    let mut tmp_dir = TmpfsInode::new("tmp", FileType::Directory);
-    let mut var_dir = TmpfsInode::new("var", FileType::Directory);
-    let mut dev_dir = TmpfsInode::new("dev", FileType::Directory);
-    let mut proc_dir = TmpfsInode::new("proc", FileType::Directory);
+    let tmp_dir = TmpfsInode::new("tmp", FileType::Directory);
+    let var_dir = TmpfsInode::new("var", FileType::Directory);
+    let dev_dir = TmpfsInode::new("dev", FileType::Directory);
+    let proc_dir = TmpfsInode::new("proc", FileType::Directory);
 
     let tmp_ref: InodeRef = Arc::new(Mutex::new(tmp_dir));
     let var_ref: InodeRef = Arc::new(Mutex::new(var_dir));

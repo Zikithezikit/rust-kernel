@@ -13,7 +13,6 @@ const MSG_PANIC_TITLE: &str = "KERNEL PANIC";
 const MSG_SYSTEM_HALTED: &str = "System halted. Check serial for details.";
 const MSG_QEMU_EXIT: &str = "QEMU exit: Ctrl+Alt+Del or close window";
 
-
 fn print_panic_header(info: &PanicInfo) {
     let location = info.location();
 

@@ -39,7 +39,7 @@ pub fn get_tss() -> Option<&'static TaskStateSegment> {
 /// # Errors
 /// Returns `KernelError::TssInitFailed` if:
 /// - Failed to allocate stack memory
-/// 
+///
 /// # Panics
 /// Will panic if either or fails
 /// - GDT or TSS initialization / appending to the GDT

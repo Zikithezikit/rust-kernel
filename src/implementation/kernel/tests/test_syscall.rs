@@ -1,6 +1,6 @@
 use crate::drivers::serial;
 use crate::syscall::handler::{get_ticks, increment_ticks, SYSCALL_TABLE};
-use crate::syscall::numbers::{Errno, FileDescriptor, NR_SYSCALLS, SyscallNumber, SyscallResult};
+use crate::syscall::numbers::{Errno, FileDescriptor, SyscallNumber, SyscallResult, NR_SYSCALLS};
 
 pub fn test_syscall_table_initialized() {
     serial::write_string("Testing syscall table initialized...\n");

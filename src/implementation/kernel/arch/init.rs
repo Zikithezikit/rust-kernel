@@ -2,10 +2,10 @@
 //!
 //! Handles architecture-specific setup including TSS, IDT, PIC, PIT, and interrupts.
 
-use x86_64::registers::rflags::{self, RFlags};
 use crate::arch::x86::interrupts;
 use crate::arch::x86::tss;
 use crate::error::{KernelError, KernelResult};
+use x86_64::registers::rflags::{self, RFlags};
 
 /// Initializes all interrupt handling hardware and software.
 ///
@@ -27,7 +27,6 @@ pub fn init_interrupts() -> KernelResult<()> {
 
 /// Enables CPU interrupts.
 pub fn enable_interrupts() -> KernelResult<()> {
-
     x86_64::instructions::interrupts::enable();
 
     // Check IF(= interrupt flag) and return error if interrupts are not enabled

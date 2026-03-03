@@ -24,8 +24,18 @@ use crate::memory::pmm::PMM;
 /// Page size (4KB)
 const PAGE_SIZE: usize = 4096;
 
-/// Global bump allocator state
-static mut BUMP_ALLOCATOR: BumpAllocator = BumpAllocator::new();
+/// Wrapper for raw pointers to make them Send-safe in single-threaded kernel
+///
+/// # Safety
+/// In a single-threaded kernel context, raw pointers are safe to pass between
+/// "threads" (the mutex guard) because there's only one execution context.
+struct SendPtr(*mut u8);
+
+// SAFETY: In single-threaded kernel, we manually ensure only one access at a time
+unsafe impl Send for SendPtr {}
+
+/// Global bump allocator state - protected by mutex for thread-safe access
+static BUMP_ALLOCATOR: Mutex<BumpAllocator> = Mutex::new(BumpAllocator::new());
 
 /// Bump allocator with page-level tracking for freeing
 pub struct BumpAllocator {
@@ -36,7 +46,7 @@ pub struct BumpAllocator {
     /// End of heap region
     end: usize,
     /// List of allocated pages for tracking
-    allocated_pages: Mutex<Vec<(*mut u8, usize)>>,
+    allocated_pages: Mutex<Vec<(SendPtr, usize)>>,
 }
 
 impl BumpAllocator {
@@ -89,7 +99,7 @@ impl BumpAllocator {
             if let Some(addr) = PMM.allocate_pages(pages) {
                 let ptr = addr as *mut u8;
                 // Track for potential freeing
-                self.allocated_pages.lock().push((ptr, pages));
+                self.allocated_pages.lock().push((SendPtr(ptr), pages));
                 return ptr;
             }
             return ptr::null_mut();
@@ -142,12 +152,12 @@ impl BumpAllocator {
 
         // For large allocations, we can free pages
         if size > PAGE_SIZE / 2 {
-            let pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+            let _pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
             let addr = ptr as usize;
 
             // Find and remove from tracking
             let mut pages_lock = self.allocated_pages.lock();
-            if let Some(pos) = pages_lock.iter().position(|(p, _)| *p == ptr) {
+            if let Some(pos) = pages_lock.iter().position(|(p, _)| p.0 == ptr) {
                 let (_, pcount) = pages_lock.remove(pos);
                 PMM.deallocate_pages(addr, pcount);
             }
@@ -167,22 +177,23 @@ impl PmmAllocator {
 
     /// Initialize the allocator
     pub unsafe fn init(&self, heap_start: usize, heap_size: usize) {
-        BUMP_ALLOCATOR.init(heap_start, heap_size);
+        let mut allocator = BUMP_ALLOCATOR.lock();
+        allocator.init(heap_start, heap_size);
     }
 
     /// Check if initialized
     pub fn is_initialized() -> bool {
-        unsafe { BUMP_ALLOCATOR.is_initialized() }
+        BUMP_ALLOCATOR.lock().is_initialized()
     }
 }
 
 unsafe impl GlobalAlloc for PmmAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        unsafe { BUMP_ALLOCATOR.allocate(layout) }
+        BUMP_ALLOCATOR.lock().allocate(layout)
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        unsafe { BUMP_ALLOCATOR.deallocate(ptr, layout) }
+        BUMP_ALLOCATOR.lock().deallocate(ptr, layout)
     }
 }
 

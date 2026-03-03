@@ -1,6 +1,5 @@
 use crate::drivers::serial;
-use crate::memory::pmm::PMM;
-use crate::task::id_allocator::{MAX_TASKS, TASK_ID_ALLOCATOR};
+use crate::task::id_allocator::TASK_ID_ALLOCATOR;
 use crate::task::scheduler::SCHEDULER;
 use crate::task::task::{Task, TaskId, TaskState, KERNEL_STACK_SIZE};
 
@@ -227,7 +226,8 @@ pub fn test_id_allocator_max() {
     serial::write_hex(allocated as u64);
     serial::write_string("\n");
 
-    let ok = allocated >= 0;
+    // usize is always >= 0, so this is always true
+    let ok = true;
 
     serial::write_string(if ok {
         "id_alloc_max: OK\n"
@@ -290,7 +290,6 @@ pub fn test_scheduler_tick_time_slice() {
     } else {
         serial::write_string("scheduler_timeslice: FAIL (could not schedule)\n");
     }
-
 }
 
 pub fn test_scheduler_preemptive_tick() {

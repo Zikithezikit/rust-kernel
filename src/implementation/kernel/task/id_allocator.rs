@@ -155,7 +155,8 @@ impl IdAllocator {
             self.bitmap[idx].store(0, core::sync::atomic::Ordering::Relaxed);
         }
 
-        self.allocated.store(0, core::sync::atomic::Ordering::Relaxed);
+        self.allocated
+            .store(0, core::sync::atomic::Ordering::Relaxed);
         self.next_id.store(1, core::sync::atomic::Ordering::Relaxed);
     }
 }
