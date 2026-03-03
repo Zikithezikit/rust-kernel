@@ -191,12 +191,19 @@ impl MountNamespace {
                 )
             };
 
+            // Only move to parent if there's no child to look up
+            // (parent assignment gets overwritten if next exists)
             if name == component && file_type == FileType::Directory {
-                if let Some(p) = parent {
-                    current = p;
+                // Check parent only if next is None
+                let use_parent = next.is_none() && parent.is_some();
+                if use_parent {
+                    if let Some(p) = parent {
+                        current = p;
+                    }
                 }
             }
 
+            // Move to child if exists, otherwise error
             if let Some(n) = next {
                 current = n;
             } else {

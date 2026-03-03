@@ -1,5 +1,5 @@
 use crate::drivers::serial;
-use crate::vfs::dentry::{Dentry, DentryFlags};
+use crate::vfs::dentry::Dentry;
 use crate::vfs::file::{FileFlags, FileTable};
 use crate::vfs::initramfs;
 use crate::vfs::inode::{FilePermissions, FileType, Inode, InodeRef, SeekFrom};
@@ -8,7 +8,6 @@ use crate::vfs::mount::MountNamespace;
 use crate::vfs::superblock::SuperBlock;
 use crate::vfs::tmpfs;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use spin::Mutex;
 
 pub fn test_vfs_inode_creation() {
@@ -385,7 +384,7 @@ pub fn test_vfs_walk_path() {
     let _ = home_guard.mkdir("user", FilePermissions::default_directory());
     drop(home_guard);
 
-    let mut ns = MountNamespace::new(root);
+    let ns = MountNamespace::new(root);
     let result = ns.walk_path("/home/user");
 
     let ok = result.is_ok();

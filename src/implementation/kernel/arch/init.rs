@@ -4,35 +4,53 @@
 
 use crate::arch::x86::interrupts;
 use crate::arch::x86::tss;
-use crate::drivers::serial;
+use crate::error::{KernelError, KernelResult};
+use x86_64::registers::rflags::{self, RFlags};
 
-pub use crate::arch::x86::tss::TssError as ArchError;
-
-pub fn init_tss() -> Result<(), ArchError> {
-    tss::init()
-}
-
-pub fn load_tss() -> Result<(), ArchError> {
-    tss::load()
-}
-
-pub fn init_interrupts() -> Result<(), ArchError> {
+/// Initializes all interrupt handling hardware and software.
+///
+/// This includes:
+/// - PIC (Programmable Interrupt Controller)
+/// - PIT (Programmable Interval Timer)
+/// - IDT (Interrupt Descriptor Table)
+///
+/// # Errors
+/// Returns `KernelError::IdtInitFailed` if interrupt initialization fails.
+pub fn init_interrupts() -> KernelResult<()> {
     unsafe {
         interrupts::init_pic();
         interrupts::init_pit();
     }
-    interrupts::init_idt();
+    interrupts::init_idt()?;
     Ok(())
 }
 
-pub fn enable_interrupts() {
+/// Enables CPU interrupts.
+pub fn enable_interrupts() -> KernelResult<()> {
     x86_64::instructions::interrupts::enable();
+
+    // Check IF(= interrupt flag) and return error if interrupts are not enabled
+    if !rflags::read().contains(RFlags::INTERRUPT_FLAG) {
+        return Err(KernelError::InterruptError);
+    }
+
+    Ok(())
 }
 
-pub fn init_arch() -> Result<(), ArchError> {
-    init_tss()?;
+/// Initializes all architecture-specific subsystems.
+///
+/// This function:
+/// 1. Initializes the TSS
+/// 2. Initializes interrupts (PIC, PIT, IDT)
+/// 3. Loads the TSS
+/// 4. Enables interrupts
+///
+/// # Errors
+/// Returns `KernelError::TssInitFailed` or `KernelError::IdtInitFailed` if any step fails.
+pub fn init_arch() -> KernelResult<()> {
+    tss::init()?;
     init_interrupts()?;
-    load_tss()?;
-    enable_interrupts();
+    tss::load()?;
+    enable_interrupts()?;
     Ok(())
 }

@@ -2,11 +2,10 @@
 //!
 //! In Linux, super_block represents a mounted filesystem
 
-use super::inode::{Inode, InodeRef, Stat};
+use super::inode::InodeRef;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use spin::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SuperBlockFlags {
@@ -38,6 +37,7 @@ impl SuperBlockFlags {
     }
 }
 
+#[allow(dead_code)]
 pub struct SuperBlock {
     pub s_dev: u64,
     pub s_inodes: Vec<InodeRef>,
@@ -46,6 +46,7 @@ pub struct SuperBlock {
     pub s_fs_info: String,
 }
 
+#[allow(dead_code)]
 impl SuperBlock {
     pub fn new(s_dev: u64, root: InodeRef, fs_info: &str) -> Self {
         Self {

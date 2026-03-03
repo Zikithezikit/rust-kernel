@@ -4,10 +4,8 @@ const TEST_ADDRESS: usize = 0x100000;
 const TEST_VAL: u8 = 0x42;
 
 pub fn test_page_fault_handler() {
-    serial::write_string("\n=== VMM Tests ===\n");
     test_hex();
     test_paging();
-    serial::write_string("=== VMM: OK ===\n");
 }
 
 fn test_hex() {

@@ -122,5 +122,3 @@ impl Task {
 /// Default time slice for round-robin scheduling (in timer ticks)
 /// 10 ticks at ~100Hz timer = ~100ms
 pub const DEFAULT_TIME_SLICE: usize = 10;
-
-use crate::memory::pmm::PAGE_SIZE;

@@ -1,8 +1,8 @@
 //! VFS inode cache and concrete inode implementations
 
 use super::inode::{
-    DirEntry, FileMode, FileModeBit, FileModeKind, FilePermissions, FileType, Inode, InodeRef,
-    Stat, VfsError, BLOCK_SIZE, SECTOR_SIZE,
+    DirEntry, FileModeKind, FilePermissions, FileType, Inode, InodeRef, Stat, VfsError, BLOCK_SIZE,
+    SECTOR_SIZE,
 };
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;

@@ -9,7 +9,7 @@ use alloc::sync::Arc;
 use spin::Mutex;
 
 use super::id_allocator::TASK_ID_ALLOCATOR;
-use super::task::{Task, TaskId, TaskState, DEFAULT_TIME_SLICE};
+use super::task::{Task, TaskId, TaskState};
 use crate::task::switch::current_task_ptr;
 
 /// Global scheduler instance
@@ -89,7 +89,7 @@ impl Scheduler {
     ///
     /// Moves current task to back of run queue if still runnable.
     pub fn tick(&self) {
-        let mut current = match self.current.lock().take() {
+        let current = match self.current.lock().take() {
             Some(t) => t,
             None => return,
         };
@@ -124,7 +124,7 @@ impl Scheduler {
     /// Called from timer interrupt. If current task's time slice expired,
     /// switches to next runnable task.
     pub fn preemptive_tick(&self) {
-        let mut current = match self.current.lock().take() {
+        let current = match self.current.lock().take() {
             Some(t) => t,
             None => return,
         };
@@ -211,5 +211,69 @@ impl Scheduler {
         let queue_len = self.run_queue.lock().len();
         let current_running = if self.current.lock().is_some() { 1 } else { 0 };
         queue_len + current_running
+    }
+
+    /// Runs the scheduler loop.
+    ///
+    /// This is the main entry point for task scheduling. It keeps the kernel alive
+    /// by handling timer interrupts and other events.
+    pub fn run(&self) -> ! {
+        use crate::drivers::serial;
+
+        serial::write_string("Scheduler running...\n");
+
+        // Enable interrupts and wait for timer ticks
+        x86_64::instructions::interrupts::enable();
+
+        // Main idle loop - this should never exit
+        loop {
+            x86_64::instructions::hlt();
+        }
+    }
+
+    /// Internal schedule method (non-locking version for run loop)
+    fn schedule_internal(&self) -> Option<Arc<Mutex<Task>>> {
+        let mut queue = self.run_queue.lock();
+
+        if queue.is_empty() {
+            return None;
+        }
+
+        let task = queue.pop_front()?;
+        {
+            let mut t = task.lock();
+            if t.state == TaskState::Ready {
+                t.set_running();
+            }
+        }
+        *self.current.lock() = Some(task.clone());
+
+        Some(task)
+    }
+
+    /// Resets the scheduler to a clean state.
+    ///
+    /// This should be called before running each scheduler test
+    /// to avoid leftover tasks, locks, or IDs from previous tests.
+    pub fn reset(&self) {
+        // Clear the run queue
+        let mut runing_queue = self.run_queue.lock();
+        runing_queue.clear();
+        drop(runing_queue);
+
+        // Clear the current task
+        let mut current = self.current.lock();
+        *current = None;
+        drop(current);
+
+        // Reset the initialized flag (optional, if needed for tests)
+        let mut init = self.initialized.lock();
+        *init = false;
+        drop(init);
+
+        // Reset the task ID allocator
+        unsafe { TASK_ID_ALLOCATOR.reset() };
+
+        crate::drivers::serial::write_string("Scheduler reset complete\n");
     }
 }

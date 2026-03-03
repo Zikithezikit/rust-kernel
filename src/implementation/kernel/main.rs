@@ -6,6 +6,8 @@ extern crate alloc;
 
 mod arch;
 mod drivers;
+mod error;
+mod kernel;
 mod memory;
 mod panic;
 mod syscall;
@@ -14,6 +16,7 @@ mod tests;
 mod vfs;
 
 use drivers::serial;
+use kernel as kernel_module;
 use memory::allocator::PmmAllocator;
 
 #[global_allocator]
@@ -27,13 +30,6 @@ fn halt() -> ! {
 }
 
 #[inline(always)]
-fn log_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
-    if let Err(e) = result {
-        serial::write_string(&alloc::format!("{}: {}\n", msg, e));
-    }
-}
-
-#[inline(always)]
 fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
     if let Err(e) = result {
         serial::write_string(&alloc::format!("{}: {}\n", msg, e));
@@ -41,27 +37,41 @@ fn halt_on_err<E: core::fmt::Display>(result: Result<(), E>, msg: &str) {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
+/// Init sub modules, this function can't fail so there's no return
+#[inline(always)]
+fn init_submodules(multiboot_info: usize) {
+    // Initialize drivers first (VGA, serial)
     halt_on_err(drivers::init::init(), "Driver init failed");
+    serial::write_string("Serial initialized!\n");
+
+    // Initialize memory subsystem
     halt_on_err(
         memory::init::init_memory(multiboot_info, &ALLOCATOR),
         "Memory init failed",
     );
 
+    // Initialize the global kernel instance
+    halt_on_err(kernel_module::init_kernel(), "Kernel init failed");
+
+    // Initialize Arch
+    halt_on_err(arch::init::init_arch(), "Arch init failed");
+
+    // Init VFS
+    halt_on_err(vfs::init(), "VFS init failed");
+}
+
+/// This is the main function that is called from the assembly
+#[no_mangle]
+pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
+    init_submodules(multiboot_info);
+
     drivers::vga::clear_screen();
     drivers::vga::println("Hello, World!");
     drivers::vga::println("This is my kernel.");
-    serial::write_string("Serial initialized!\n");
-
-    halt_on_err(arch::init::init_tss(), "TSS init failed");
 
     tests::run_tests();
 
-    log_on_err(arch::init::load_tss(), "TSS load failed");
-    halt_on_err(arch::init::init_interrupts(), "Interrupts init failed");
-    halt_on_err(task::init::init(), "Task init failed");
-    serial::write_string("VFS initialized!\n");
-
-    halt();
+    // Run the scheduler - this is the main kernel loop
+    serial::write_string("Starting scheduler...\n");
+    kernel_module::kernel().scheduler_mut().run();
 }

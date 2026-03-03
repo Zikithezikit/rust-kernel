@@ -19,7 +19,7 @@ use spin::Mutex;
 use x86_64::structures::idt::InterruptStackFrame;
 
 pub use crate::syscall::numbers::{
-    Errno, FileDescriptor, NR_syscalls, SyscallFn, SyscallNumber, SyscallResult,
+    Errno, FileDescriptor, SyscallFn, SyscallNumber, SyscallResult, NR_SYSCALLS,
 };
 
 /// Default time slice for forked tasks (in ticks)
@@ -27,8 +27,8 @@ const FORK_TIME_SLICE: usize = 10;
 
 /// Syscall table - maps syscall numbers to functions
 /// Similar to Linux's sys_call_table
-pub static SYSCALL_TABLE: [Option<SyscallFn>; NR_syscalls] = {
-    let mut table: [Option<SyscallFn>; NR_syscalls] = [None; NR_syscalls];
+pub static SYSCALL_TABLE: [Option<SyscallFn>; NR_SYSCALLS] = {
+    let mut table: [Option<SyscallFn>; NR_SYSCALLS] = [None; NR_SYSCALLS];
     table[SyscallNumber::SysExit as usize] = Some(sys_exit);
     table[SyscallNumber::SysWrite as usize] = Some(sys_write);
     table[SyscallNumber::SysRead as usize] = Some(sys_read);
@@ -96,7 +96,7 @@ pub unsafe fn handle_syscall(_stack_frame: &InterruptStackFrame) -> SyscallResul
 
     get_syscall_args!(syscall_num, arg1, arg2, arg3, arg4, arg5, arg6);
 
-    if syscall_num >= NR_syscalls {
+    if syscall_num >= NR_SYSCALLS {
         serial::write_string(&format!("syscall: {} out of range\n", syscall_num));
         return -(SyscallResult::MAX as SyscallResult);
     }

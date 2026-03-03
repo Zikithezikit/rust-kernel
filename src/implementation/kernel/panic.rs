@@ -13,10 +13,6 @@ const MSG_PANIC_TITLE: &str = "KERNEL PANIC";
 const MSG_SYSTEM_HALTED: &str = "System halted. Check serial for details.";
 const MSG_QEMU_EXIT: &str = "QEMU exit: Ctrl+Alt+Del or close window";
 
-fn write_hex(value: u64) {
-    drivers::serial::write_hex(value);
-}
-
 fn print_panic_header(info: &PanicInfo) {
     let location = info.location();
 
@@ -32,9 +28,9 @@ fn print_panic_header(info: &PanicInfo) {
         drivers::serial::write_string("Location: ");
         drivers::serial::write_string(loc.file());
         drivers::serial::write_string(":");
-        write_hex(loc.line() as u64);
+        drivers::serial::write_hex(loc.line() as u64);
         drivers::serial::write_string(":");
-        write_hex(loc.column() as u64);
+        drivers::serial::write_hex(loc.column() as u64);
         drivers::serial::write_string("\n");
     } else {
         drivers::serial::write_string("Location: unknown\n");
