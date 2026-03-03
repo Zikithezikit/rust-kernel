@@ -57,7 +57,7 @@ fn init_submodules(multiboot_info: usize) {
     halt_on_err(arch::init::init_arch(), "Arch init failed");
 
     // Init VFS
-    halt_on_err(vfs::init(), "VFS init failed"); // This is currently empty.
+    halt_on_err(vfs::init(), "VFS init failed");
 }
 
 /// This is the main function that is called from the assembly

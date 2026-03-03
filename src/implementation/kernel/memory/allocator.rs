@@ -69,11 +69,6 @@ impl BumpAllocator {
         self.start = heap_start;
         self.current = heap_start;
         self.end = heap_start + heap_size;
-
-        crate::drivers::serial::write_string(&format!(
-            "Bump allocator initialized: {} - {} ({} bytes)\n",
-            heap_start, self.end, heap_size
-        ));
     }
 
     /// Check if initialized
