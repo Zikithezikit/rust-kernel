@@ -10,7 +10,7 @@ mod fs;
 mod include;
 mod ipc;
 mod kernel;
-mod kernel_main;
+mod kernel_instance;
 mod memory;
 mod mm;
 mod panic;
@@ -51,7 +51,7 @@ fn init_submodules(multiboot_info: usize) {
     );
 
     // Initialize the global kernel instance
-    halt_on_err(kernel_main::init_kernel(), "Kernel init failed");
+    halt_on_err(kernel_instance::init_kernel(), "Kernel init failed");
 
     // Initialize Arch
     halt_on_err(arch::init::init_arch(), "Arch init failed");
@@ -73,5 +73,5 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
 
     // Run the scheduler - this is the main kernel loop
     serial::write_string("Starting scheduler...\n");
-    kernel_main::kernel().scheduler_mut().run();
+    kernel_instance::kernel().scheduler_mut().run();
 }
