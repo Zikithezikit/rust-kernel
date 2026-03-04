@@ -13,11 +13,11 @@ else
 endif
 
 # Directories
-ASM_SRC_DIR := src/implementation/x86_64/boot
+ASM_SRC_DIR := src/x86_64/boot
 ASM_SRCS    := $(wildcard $(ASM_SRC_DIR)/*.asm)
 ASM_OBJS    := $(patsubst $(ASM_SRC_DIR)/%.asm, build/x86_64/%.o, $(ASM_SRCS))
 
-RUST_SRC_ALL := $(shell find src/implementation/kernel -name '*.rs')
+RUST_SRC_ALL := $(shell find src/kernel -name '*.rs')
 RUST_LIB     := target/x86_64-unknown-none/release/librust_kernel.a
 
 LINKER_SCRIPT := targets/x86_64/linker.ld
@@ -25,7 +25,7 @@ KERNEL_BIN    := dist/x86_64/kernel.bin
 ISO_DIR       := targets/x86_64/iso
 
 # Compile assembly to object files
-build/x86_64/%.o: src/implementation/x86_64/boot/%.asm
+build/x86_64/%.o: src/x86_64/boot/%.asm
 	mkdir -p $(dir $@)
 	nasm -f elf64 $< -o $@
 

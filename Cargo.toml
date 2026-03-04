@@ -15,7 +15,7 @@ default = []
 alloc = []
 
 [lib]
-path = "src/implementation/kernel/main.rs"
+path = "src/kernel/main.rs"
 crate-type = ["staticlib"]
 
 [build-dependencies]
