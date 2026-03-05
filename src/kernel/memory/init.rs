@@ -7,8 +7,10 @@ use crate::include::error::{KernelError, KernelResult};
 use crate::mm::allocator::PmmAllocator;
 use crate::mm::pmm::PMM;
 
-const HEAP_START: usize = 0x_100_000;
-const HEAP_SIZE: usize = 0x_100_000;
+/// Heap starts at 16MB - well above kernel code/data
+const HEAP_START: usize = 0x_1000_000;
+/// Heap size: 16MB
+const HEAP_SIZE: usize = 0x_1000_000;
 
 /// Initializes the Physical Memory Manager (PMM).
 ///

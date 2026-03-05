@@ -69,6 +69,7 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     drivers::vga::println("Hello, World!");
     drivers::vga::println("This is my kernel.");
 
+    // Run tests to check if heap fix resolved boot loop
     tests::run_tests();
 
     // Run the scheduler - this is the main kernel loop
