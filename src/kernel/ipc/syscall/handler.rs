@@ -9,6 +9,7 @@
 use crate::arch::x86::regs::PtRegs;
 use crate::drivers::serial;
 use crate::drivers::vga;
+use crate::include::consts::{CONTEXT_SWITCH_REGS, MAX_PATH_LEN, SYSCALL_LOG_INTERVAL, USER_RING};
 use crate::kernel::id_allocator::TASK_ID_ALLOCATOR;
 use crate::kernel::scheduler::SCHEDULER;
 use crate::kernel::task::Task;
@@ -73,9 +74,11 @@ pub unsafe fn handle_syscall_with_regs(regs: &mut PtRegs) -> SyscallResult {
     let arg6 = regs.r9 as usize;
 
     // Check if coming from user mode
-    if (regs.cs & 3) == 3 {
+    if (regs.cs & 3) == (USER_RING as u64) {
         // Limited logging to avoid flooding
-        if syscall_num != SyscallNumber::SysWrite as usize || get_ticks() % 100 == 0 {
+        if syscall_num != SyscallNumber::SysWrite as usize
+            || get_ticks() % SYSCALL_LOG_INTERVAL == 0
+        {
             serial::write_string(&format!("USER syscall: {}\n", syscall_num));
         }
     }
@@ -288,14 +291,14 @@ fn sys_fork(
         let mut child_rsp = child_regs_ptr;
 
         // Push return address for context_switch
-        child_rsp -= 8;
+        child_rsp -= core::mem::size_of::<usize>();
         unsafe {
             *(child_rsp as *mut usize) = syscall_exit_asm as *const () as usize;
         }
 
-        // Push 6 dummy registers for context_switch
-        for _ in 0..6 {
-            child_rsp -= 8;
+        // Push dummy registers for context_switch
+        for _ in 0..CONTEXT_SWITCH_REGS {
+            child_rsp -= core::mem::size_of::<usize>();
             unsafe {
                 *(child_rsp as *mut usize) = 0;
             }
@@ -333,16 +336,44 @@ fn sys_fork(
 
 /// sys_execve - replace current process with new program
 fn sys_execve(
-    _regs: &mut PtRegs,
-    _arg1: usize,
+    regs: &mut PtRegs,
+    arg1: usize,
     _arg2: usize,
     _arg3: usize,
     _arg4: usize,
     _arg5: usize,
     _arg6: usize,
 ) -> SyscallResult {
-    serial::write_string("sys_execve: not fully implemented\n");
-    Errno::ENOSYS.as_isize()
+    let path_ptr = arg1 as *const u8;
+    if path_ptr.is_null() {
+        return Errno::EINVAL.as_isize();
+    }
+
+    // Safely copy path from user space (assuming identity mapping for now)
+    // In a real kernel, we'd use copy_from_user
+    let mut path_buf = [0u8; MAX_PATH_LEN];
+    let mut i = 0;
+    unsafe {
+        while i < MAX_PATH_LEN - 1 {
+            let c = *path_ptr.add(i);
+            if c == 0 {
+                break;
+            }
+            path_buf[i] = c;
+            i += 1;
+        }
+    }
+    let path = match core::str::from_utf8(&path_buf[..i]) {
+        Ok(s) => s,
+        Err(_) => return Errno::EINVAL.as_isize(),
+    };
+
+    serial::write_string(&format!("sys_execve: path={}\n", path));
+
+    match crate::kernel::exec::exec_binary(path, regs) {
+        Ok(()) => 0, // Will return to new entry point
+        Err(_) => Errno::ENOENT.as_isize(),
+    }
 }
 
 /// sys_open - open a file (stub - returns error)

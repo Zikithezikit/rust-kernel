@@ -5,4 +5,5 @@
 //! - Common type definitions
 //! - Constants
 
+pub mod consts;
 pub mod error;

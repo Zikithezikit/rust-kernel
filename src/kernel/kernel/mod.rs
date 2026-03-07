@@ -7,6 +7,7 @@
 //! - Process creation (fork/exec)
 //! - PID allocation
 
+pub mod exec;
 pub mod id_allocator;
 pub mod scheduler;
 pub mod switch;

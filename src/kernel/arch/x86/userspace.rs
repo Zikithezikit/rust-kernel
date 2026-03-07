@@ -3,6 +3,7 @@
 //! Handles the transition from kernel mode (Ring 0) to user mode (Ring 3).
 
 use crate::arch::x86::tss::get_selectors;
+use crate::include::consts::{USER_RFLAGS, USER_RING};
 
 /// Jump to user mode
 ///
@@ -16,9 +17,9 @@ use crate::arch::x86::tss::get_selectors;
 pub unsafe fn jump_to_user_mode(entry_point: u64, stack_pointer: u64) -> ! {
     let selectors = get_selectors().expect("GDT not initialized");
 
-    let ss = (selectors.user_data.0 | 3) as u64; // Set RPL to 3
-    let cs = (selectors.user_code.0 | 3) as u64; // Set RPL to 3
-    let rflags = 0x202; // Interrupts enabled, bit 1 always set
+    let ss = (selectors.user_data.0 | USER_RING as u16) as u64; // Set RPL
+    let cs = (selectors.user_code.0 | USER_RING as u16) as u64; // Set RPL
+    let rflags = USER_RFLAGS;
 
     core::arch::asm!(
         "mov ds, {ds:x}",
@@ -29,7 +30,7 @@ pub unsafe fn jump_to_user_mode(entry_point: u64, stack_pointer: u64) -> ! {
         "push {cs:r}",
         "push {rip:r}",
         "iretq",
-        ds = in(reg) (selectors.user_data.0 | 3),
+        ds = in(reg) (selectors.user_data.0 | USER_RING as u16),
         ss = in(reg) ss,
         rsp = in(reg) stack_pointer,
         rflags = in(reg) rflags,
