@@ -7,5 +7,6 @@
 //! - Page table management
 
 pub mod allocator;
+pub mod page_tables;
 pub mod pmm;
 pub mod vmm;

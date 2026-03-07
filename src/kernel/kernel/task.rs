@@ -10,6 +10,7 @@ use spin::Mutex;
 pub const KERNEL_STACK_SIZE: usize = 8192;
 
 /// Task/Thread state
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
     Running,
@@ -29,12 +30,15 @@ pub type TaskId = usize;
 /// - Scheduling information (state, priority, timeslice)
 /// - Resources (kernel stack, memory)
 /// - Parent/child relationships
+#[repr(C)]
 pub struct Task {
     pub id: TaskId,
     pub parent_id: TaskId,
     pub state: TaskState,
     pub kernel_stack: usize,
+    pub kernel_stack_top: usize,
     pub stack_size: usize,
+    pub cr3: usize,
     pub instruction_pointer: usize,
     pub time_slice: usize,
     pub time_slice_max: usize,
@@ -54,14 +58,42 @@ impl Task {
     /// - The kernel stack must be properly set up
     /// - The entry function should never return
     pub unsafe fn new(id: TaskId, entry: fn(), name: &'static str) -> Option<Arc<Mutex<Task>>> {
-        let stack = Self::allocate_kernel_stack()?;
+        let stack_top = Self::allocate_kernel_stack()?;
+
+        // Get current CR3 for the new task
+        use x86_64::registers::control::Cr3;
+        let (l4_frame, _) = Cr3::read();
+        let cr3 = l4_frame.start_address().as_u64() as usize;
+
+        // Set up initial stack frame for context_switch
+        // The stack must look like it was saved by context_switch:
+        // [top - 8]  : Entry point (for ret)
+        // [top - 16] : r15
+        // [top - 24] : r14
+        // [top - 32] : r13
+        // [top - 40] : r12
+        // [top - 48] : rbx
+        // [top - 56] : rbp
+        let mut rsp = stack_top;
+
+        // Push entry point
+        rsp -= 8;
+        *(rsp as *mut usize) = entry as usize;
+
+        // Push 6 dummy registers (r15, r14, r13, r12, rbx, rbp)
+        for _ in 0..6 {
+            rsp -= 8;
+            *(rsp as *mut usize) = 0;
+        }
 
         let task = Task {
             id,
             parent_id: 0,
             state: TaskState::New,
-            kernel_stack: stack,
+            kernel_stack: rsp, // Saved stack pointer
+            kernel_stack_top: stack_top,
             stack_size: KERNEL_STACK_SIZE,
+            cr3,
             instruction_pointer: entry as usize,
             time_slice: 0,
             time_slice_max: DEFAULT_TIME_SLICE,

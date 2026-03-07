@@ -27,27 +27,23 @@ use super::task::Task;
 /// # Safety
 /// - Must only be called with a valid task that has a properly set up stack
 pub unsafe fn switch_to_task(task: &Task) {
-    let rsp = task.kernel_stack;
+    // 1. Update CR3 if necessary
+    use x86_64::registers::control::Cr3;
+    use x86_64::structures::paging::PhysFrame;
+    use x86_64::{PhysAddr, VirtAddr};
 
-    // If this is the first time running this task, we need to set up the stack
-    // with the entry point as the return address
-    if task.state == super::task::TaskState::New {
-        // Set up initial stack frame for the task
-        // We push the entry point as if it was called
-        let _stack_top = task.kernel_stack;
-
-        // We need to write to the stack (careful: this is the physical address
-        // in a real OS, we'd need proper page table mapping)
-        // For now, we assume the kernel_stack is a virtual address we can use
-
-        // Actually, for a new task, we should set up the stack so that
-        // when we return, it jumps to the entry point
-        // Let's store the entry point where context_switch will return to
-
-        // Since this is complex with virtual memory, let's simplify:
-        // For now, we'll just mark the task as Running and let the
-        // scheduler handle it differently
+    let (current_cr3_frame, cr3_flags) = Cr3::read();
+    if current_cr3_frame.start_address().as_u64() != task.cr3 as u64 {
+        Cr3::write(
+            PhysFrame::containing_address(PhysAddr::new(task.cr3 as u64)),
+            cr3_flags,
+        );
     }
 
+    // 2. Update TSS RSP0
+    crate::arch::x86::tss::set_kernel_stack(VirtAddr::new(task.kernel_stack_top as u64));
+
+    // 3. Switch context
+    let rsp = task.kernel_stack;
     context_switch(rsp);
 }

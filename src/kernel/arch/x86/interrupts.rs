@@ -65,7 +65,9 @@ pub fn init_idt() -> KernelResult<()> {
     idt.page_fault.set_handler_fn(page_fault_handler);
     idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
     idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
-    idt[SYSCALL_VECTOR].set_handler_fn(syscall_interrupt_handler);
+    idt[SYSCALL_VECTOR]
+        .set_handler_fn(syscall_interrupt_handler)
+        .set_privilege_level(x86_64::PrivilegeLevel::Ring3);
 
     IDT.call_once(|| idt).load();
 

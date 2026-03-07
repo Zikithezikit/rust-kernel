@@ -85,7 +85,7 @@ macro_rules! get_syscall_args {
 /// System call handler
 ///
 /// Called via int 0x80. Uses Linux x86-64 calling convention.
-pub unsafe fn handle_syscall(_stack_frame: &InterruptStackFrame) -> SyscallResult {
+pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult {
     let syscall_num: usize;
     let arg1: usize;
     let arg2: usize;
@@ -95,6 +95,15 @@ pub unsafe fn handle_syscall(_stack_frame: &InterruptStackFrame) -> SyscallResul
     let arg6: usize;
 
     get_syscall_args!(syscall_num, arg1, arg2, arg3, arg4, arg5, arg6);
+
+    // Check if coming from user mode
+    let cs = stack_frame.code_segment;
+    if (cs.0 & 3) == 3 {
+        // Limited logging to avoid flooding
+        if syscall_num != SyscallNumber::SysWrite as usize || get_ticks() % 100 == 0 {
+            serial::write_string(&format!("USER syscall: {}\n", syscall_num));
+        }
+    }
 
     if syscall_num >= NR_SYSCALLS {
         serial::write_string(&format!("syscall: {} out of range\n", syscall_num));
@@ -267,12 +276,16 @@ fn sys_fork(
             }
         };
 
+        let child_cr3 = current.lock().cr3;
+
         let child = Arc::new(Mutex::new(Task {
             id: new_id,
             parent_id,
             state: TaskState::Ready,
             kernel_stack: stack,
+            kernel_stack_top: stack,
             stack_size: KERNEL_STACK_SIZE,
+            cr3: child_cr3,
             instruction_pointer: parent_ip,
             time_slice: FORK_TIME_SLICE,
             time_slice_max: FORK_TIME_SLICE,

@@ -6,6 +6,7 @@ pub mod test_pmm;
 pub mod test_syscall;
 pub mod test_task;
 pub mod test_tss;
+pub mod test_userspace;
 pub mod test_vfs;
 pub mod test_vmm;
 
@@ -166,6 +167,12 @@ pub fn run_tests() {
     test_vfs::test_tmpfs_symlink();
     test_vfs::test_tmpfs_readlink();
     serial::write_string("=== Tmpfs: OK ===\n");
+
+    // =========================
+    // User Mode Tests (DANGEROUS - NEVER RETURNS)
+    // =========================
+    serial::write_string("\n=== User Mode Tests ===\n");
+    test_userspace::test_user_mode_transition();
 
     serial::write_string("All tests completed!\n");
     serial::write_string("=== Tests completed ===\n");

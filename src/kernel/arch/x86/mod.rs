@@ -4,3 +4,4 @@
 
 pub mod interrupts;
 pub mod tss;
+pub mod userspace;
