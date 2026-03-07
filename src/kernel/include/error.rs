@@ -171,6 +171,21 @@ pub enum KernelError {
 
     /// Something went wrong (generic fallback)
     Unknown,
+
+    // ========================================================================
+    // Device/Driver errors
+    // ========================================================================
+    /// Device not found
+    DeviceNotFound,
+
+    /// Device error
+    DeviceError(&'static str),
+
+    /// Device not ready
+    DeviceNotReady,
+
+    /// Buffer too small
+    BufferTooSmall,
 }
 
 impl KernelError {
@@ -230,6 +245,12 @@ impl KernelError {
             Self::NotImplemented => "NotImplemented",
             Self::InvalidState => "InvalidState",
             Self::Unknown => "Unknown",
+
+            // Device
+            Self::DeviceNotFound => "DeviceNotFound",
+            Self::DeviceError(_) => "DeviceError",
+            Self::DeviceNotReady => "DeviceNotReady",
+            Self::BufferTooSmall => "BufferTooSmall",
         }
     }
 }
@@ -290,6 +311,12 @@ impl fmt::Display for KernelError {
             Self::NotImplemented => write!(f, "Operation not implemented"),
             Self::InvalidState => write!(f, "Invalid state"),
             Self::Unknown => write!(f, "Unknown error"),
+
+            // Device errors
+            Self::DeviceNotFound => write!(f, "Device not found"),
+            Self::DeviceError(msg) => write!(f, "Device error: {}", msg),
+            Self::DeviceNotReady => write!(f, "Device not ready"),
+            Self::BufferTooSmall => write!(f, "Buffer too small"),
         }
     }
 }

@@ -12,7 +12,6 @@
 //!
 //! This is a simplified implementation that works reliably in kernel context.
 
-use alloc::format;
 use alloc::vec::Vec;
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;

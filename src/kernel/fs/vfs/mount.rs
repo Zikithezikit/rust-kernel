@@ -2,7 +2,7 @@
 //!
 //! Provides mount point management for the virtual file system
 
-use super::inode::{FileType, InodeRef, VfsError};
+use super::inode::{InodeRef, VfsError};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -181,27 +181,10 @@ impl MountNamespace {
         };
 
         for component in components {
-            let (name, file_type, parent, next) = {
+            let next = {
                 let inode = current.lock();
-                (
-                    inode.name().to_string(),
-                    inode.inode_type(),
-                    inode.parent(),
-                    inode.lookup(component),
-                )
+                inode.lookup(component)
             };
-
-            // Only move to parent if there's no child to look up
-            // (parent assignment gets overwritten if next exists)
-            if name == component && file_type == FileType::Directory {
-                // Check parent only if next is None
-                let use_parent = next.is_none() && parent.is_some();
-                if use_parent {
-                    if let Some(p) = parent {
-                        current = p;
-                    }
-                }
-            }
 
             // Move to child if exists, otherwise error
             if let Some(n) = next {

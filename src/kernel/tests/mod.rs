@@ -1,4 +1,5 @@
 pub mod test_allocator;
+pub mod test_block;
 pub mod test_panic;
 pub mod test_pmm;
 pub mod test_syscall;
@@ -16,6 +17,11 @@ use crate::drivers::serial;
 pub fn run_tests() {
     serial::write_string("Running tests...\n");
     serial::write_string("=== Running kernel tests ===\n");
+
+    // =========================
+    // Block Device & ATA Tests
+    // =========================
+    test_block::run_block_tests();
 
     // =========================
     // Allocator Tests

@@ -92,7 +92,9 @@ pub fn test_system_ticks() {
     serial::write_hex(final_ticks);
     serial::write_string("\n");
 
-    let ok: bool = initial_ticks == 0 && after_ticks == 1 && final_ticks == 4;
+    // The timer ISR may have already fired before this test runs, so we check
+    // relative increments rather than absolute values from zero.
+    let ok: bool = after_ticks == initial_ticks + 1 && final_ticks == initial_ticks + 4;
     serial::write_string(if ok {
         "system_ticks: OK\n"
     } else {
