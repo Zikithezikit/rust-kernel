@@ -50,6 +50,9 @@ fn init_submodules(multiboot_info: usize) {
         "Memory init failed",
     );
 
+    // Initialize ATA driver after memory is ready
+    halt_on_err(drivers::init::init_ata(), "ATA init failed");
+
     // Initialize the global kernel instance
     halt_on_err(kernel_instance::init_kernel(), "Kernel init failed");
 

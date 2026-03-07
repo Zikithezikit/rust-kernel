@@ -465,12 +465,14 @@ pub fn test_initramfs_readdir() {
     let entry2 = root_lock.readdir(2);
     let entry3 = root_lock.readdir(3);
     let entry4 = root_lock.readdir(4);
+    let entry5 = root_lock.readdir(5);
 
     let ok = entry0.is_some()
         && entry1.is_some()
         && entry2.is_some()
         && entry3.is_some()
-        && entry4.is_none();
+        && entry4.is_some()
+        && entry5.is_none();
 
     serial::write_string(if ok {
         "test_initramfs_readdir: OK\n"

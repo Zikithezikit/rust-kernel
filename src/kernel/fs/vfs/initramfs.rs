@@ -204,10 +204,21 @@ impl Inode for InitramfsInode {
     fn truncate(&mut self, _size: u64) -> Result<(), VfsError> {
         Err(VfsError::OperationNotSupported)
     }
+
+    fn link(&mut self, target: InodeRef, _name: &str) -> Result<(), VfsError> {
+        if self.inode_type != FileType::Directory {
+            return Err(VfsError::NotADirectory);
+        }
+        self.children.push(target);
+        Ok(())
+    }
 }
 
 pub fn create_initramfs_root() -> InodeRef {
     let mut root = InitramfsInode::new("/", FileType::Directory);
+
+    let dev_dir = InitramfsInode::new("dev", FileType::Directory);
+    let dev_ref: InodeRef = Arc::new(Mutex::new(dev_dir));
 
     let mut bin_dir = InitramfsInode::new("bin", FileType::Directory);
     let mut bin_sh = InitramfsInode::new("sh", FileType::RegularFile);
@@ -236,6 +247,7 @@ pub fn create_initramfs_root() -> InodeRef {
     root.children.push(hello_ref);
     root.children.push(bin_ref);
     root.children.push(etc_ref);
+    root.children.push(dev_ref);
 
     Arc::new(Mutex::new(root))
 }

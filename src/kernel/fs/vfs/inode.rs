@@ -226,7 +226,7 @@ pub trait Inode: Send + Sync {
         self.set_owner(uid, gid);
         Ok(())
     }
-    fn link(&mut self, _target: &dyn Inode, _name: &str) -> Result<(), VfsError> {
+    fn link(&mut self, _target: InodeRef, _name: &str) -> Result<(), VfsError> {
         Err(VfsError::OperationNotSupported)
     }
     fn symlink(&mut self, _target: &str, _name: &str) -> Result<(), VfsError> {

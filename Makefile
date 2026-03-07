@@ -56,7 +56,7 @@ build-docker:
 	cd buildenv && docker build -t rust-kernel-env .
 
 run-kernel:
-	qemu-system-x86_64 -cdrom dist/x86_64/kernel.iso
+	qemu-system-x86_64 -cdrom dist/x86_64/kernel.iso -drive file=tests/hdd.img,format=raw,index=0,media=disk -serial stdio
 
 run-tests:
 	bash tests/run.sh

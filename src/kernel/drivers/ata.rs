@@ -109,6 +109,12 @@ impl AtaDevice {
         self.sector_size
     }
 
+    /// Disable interrupts for this device
+    pub fn disable_interrupts(&self) {
+        let mut port: Port<u8> = Port::new(self.ctrl_port);
+        unsafe { port.write(ata_ctrl::NIEN) };
+    }
+
     /// Wait for device to not be busy (Linux: ata_wait_idle)
     fn wait_not_busy(&self) -> KernelResult<()> {
         let mut port: Port<u8> = Port::new(self.base_port + ata_regs::ATA_REG_STATUS);
@@ -192,6 +198,9 @@ impl AtaDevice {
 
     /// Identify device (Linux: ata_dev_identify)
     pub fn identify(&mut self) -> KernelResult<()> {
+        // Disable interrupts first
+        self.disable_interrupts();
+
         // Wait for not busy
         self.wait_not_busy()?;
 
@@ -318,7 +327,8 @@ impl AtaDevice {
         let device = match self.drive {
             AtaDrive::Master => ata_device::ATA_MASTER_MAGIC,
             AtaDrive::Slave => ata_device::ATA_SLAVE_MAGIC,
-        } | ((start_lba >> 24) & 0x0F) as u8;
+        } | ata_device::ATA_LBA
+            | ((start_lba >> 24) & 0x0F) as u8;
         self.write_reg(ata_regs::ATA_REG_DEVICE, device);
 
         // Set sector count
@@ -393,7 +403,8 @@ impl AtaDevice {
         let device = match self.drive {
             AtaDrive::Master => ata_device::ATA_MASTER_MAGIC,
             AtaDrive::Slave => ata_device::ATA_SLAVE_MAGIC,
-        } | ((start_lba >> 24) & 0x0F) as u8;
+        } | ata_device::ATA_LBA
+            | ((start_lba >> 24) & 0x0F) as u8;
         self.write_reg(ata_regs::ATA_REG_DEVICE, device);
 
         // Set sector count
@@ -452,34 +463,31 @@ impl AtaDevice {
 }
 
 /// BlockDevice implementation for ATA device
-impl BlockDevice for Arc<Mutex<AtaDevice>> {
-    fn read_sectors(&self, sector: u64, count: usize, buf: &mut [u8]) -> KernelResult<usize> {
-        let mut device = self.lock();
-        if device.state != AtaState::Identified {
+impl BlockDevice for AtaDevice {
+    fn read_sectors(&mut self, sector: u64, count: usize, buf: &mut [u8]) -> KernelResult<usize> {
+        if self.state != AtaState::Identified {
             return Err(KernelError::DeviceNotReady);
         }
-        device.read_sectors_pio(sector, count, buf)
+        self.read_sectors_pio(sector, count, buf)
     }
 
-    fn write_sectors(&self, sector: u64, count: usize, buf: &[u8]) -> KernelResult<usize> {
-        let mut device = self.lock();
-        if device.state != AtaState::Identified {
+    fn write_sectors(&mut self, sector: u64, count: usize, buf: &[u8]) -> KernelResult<usize> {
+        if self.state != AtaState::Identified {
             return Err(KernelError::DeviceNotReady);
         }
-        device.write_sectors_pio(sector, count, buf)
+        self.write_sectors_pio(sector, count, buf)
     }
 
     fn num_sectors(&self) -> u64 {
-        self.lock().num_sectors
+        self.num_sectors
     }
 
     fn sector_size(&self) -> usize {
-        self.lock().sector_size
+        self.sector_size
     }
 
     fn is_present(&self) -> bool {
-        let d = self.lock();
-        d.state == AtaState::Identified && d.num_sectors > 0
+        self.state == AtaState::Identified && self.num_sectors > 0
     }
 
     fn device_name(&self) -> &str {
@@ -488,7 +496,7 @@ impl BlockDevice for Arc<Mutex<AtaDevice>> {
 }
 
 /// Global ATA device handles (Linux: ide_hwif_t)
-static mut ATA_PRIMARY_MASTER: Option<Arc<Mutex<AtaDevice>>> = None;
+static mut ATA_PRIMARY_MASTER: Option<Arc<Mutex<dyn BlockDevice>>> = None;
 
 /// Initialize the ATA driver (Linux: ata_init)
 pub fn init() -> KernelResult<()> {
@@ -503,10 +511,12 @@ pub fn init() -> KernelResult<()> {
     match primary_master.identify() {
         Ok(()) => {
             serial::write_string("ATA: Identify OK\n");
-            // For now, just report success - don't store globally to avoid allocation issues
-            serial::write_string("ATA: Primary master detected - ");
-            serial::write_hex(primary_master.num_sectors());
-            serial::write_string(" sectors\n");
+            // Now that memory is ready, store globally
+            let arc_dev: Arc<Mutex<dyn BlockDevice>> = Arc::new(Mutex::new(primary_master));
+            unsafe {
+                ATA_PRIMARY_MASTER = Some(arc_dev);
+            }
+            serial::write_string("ATA: Primary master detected and stored.\n");
         }
         Err(_e) => {
             serial::write_string("ATA: No primary master device\n");
@@ -518,6 +528,6 @@ pub fn init() -> KernelResult<()> {
 }
 
 /// Get the primary master device
-pub fn get_primary_master() -> Option<Arc<Mutex<AtaDevice>>> {
+pub fn get_primary_master() -> Option<Arc<Mutex<dyn BlockDevice>>> {
     unsafe { ATA_PRIMARY_MASTER.clone() }
 }

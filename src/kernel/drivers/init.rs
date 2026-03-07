@@ -44,6 +44,5 @@ pub fn init_ata() -> KernelResult<()> {
 /// Returns `KernelError::DriverFailed` if any critical driver fails to initialize.
 pub fn init() -> KernelResult<()> {
     init_serial()?;
-    init_ata()?;
     Ok(())
 }

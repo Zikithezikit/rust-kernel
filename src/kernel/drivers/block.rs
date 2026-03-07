@@ -137,7 +137,7 @@ pub trait BlockDevice: Send + Sync {
     ///
     /// # Returns
     /// Number of bytes read, or error
-    fn read_sectors(&self, sector: u64, count: usize, buf: &mut [u8]) -> KernelResult<usize>;
+    fn read_sectors(&mut self, sector: u64, count: usize, buf: &mut [u8]) -> KernelResult<usize>;
 
     /// Write one or more sectors to the device
     ///
@@ -148,7 +148,7 @@ pub trait BlockDevice: Send + Sync {
     ///
     /// # Returns
     /// Number of bytes written, or error
-    fn write_sectors(&self, sector: u64, count: usize, buf: &[u8]) -> KernelResult<usize>;
+    fn write_sectors(&mut self, sector: u64, count: usize, buf: &[u8]) -> KernelResult<usize>;
 
     /// Get total number of sectors
     fn num_sectors(&self) -> u64;

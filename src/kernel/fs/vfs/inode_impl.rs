@@ -268,6 +268,14 @@ impl Inode for InodeImpl {
         Ok(())
     }
 
+    fn link(&mut self, target: InodeRef, _name: &str) -> Result<(), VfsError> {
+        if self.inode_type != FileType::Directory {
+            return Err(VfsError::NotADirectory);
+        }
+        self.children.push(target);
+        Ok(())
+    }
+
     fn symlink(&mut self, target: &str, name: &str) -> Result<(), VfsError> {
         if self.inode_type != FileType::Directory {
             return Err(VfsError::NotADirectory);

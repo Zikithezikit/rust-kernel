@@ -40,6 +40,7 @@ rm -f "$LOG_FILE"
 
 timeout $QEMU_TIMEOUT qemu-system-x86_64 \
   -cdrom "$KERNEL_ISO" \
+  -drive file="$PROJECT_DIR/tests/hdd.img",format=raw,index=0,media=disk \
   -serial file:"$LOG_FILE" \
   -display none \
   -monitor none \

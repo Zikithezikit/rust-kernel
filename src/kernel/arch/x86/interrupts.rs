@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use crate::drivers::serial;
 use crate::drivers::vga;
 use crate::include::error::{KernelError, KernelResult};
 use crate::mm::vmm;
@@ -54,6 +55,13 @@ pub fn init_idt() -> KernelResult<()> {
     let mut idt = InterruptDescriptorTable::new();
 
     idt.debug.set_handler_fn(debug_handler);
+    idt.stack_segment_fault
+        .set_handler_fn(stack_segment_fault_handler);
+    idt.segment_not_present
+        .set_handler_fn(segment_not_present_handler);
+    idt.general_protection_fault
+        .set_handler_fn(general_protection_fault_handler);
+    idt.double_fault.set_handler_fn(double_fault_handler);
     idt.page_fault.set_handler_fn(page_fault_handler);
     idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
     idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
@@ -123,6 +131,55 @@ extern "x86-interrupt" fn page_fault_handler(
     error_code: PageFaultErrorCode,
 ) {
     vmm::page_fault_handler(&stack_frame, error_code.bits());
+}
+
+extern "x86-interrupt" fn double_fault_handler(
+    _stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
+    vga::println("EXCEPTION: DOUBLE FAULT");
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    _stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    vga::println("EXCEPTION: GENERAL PROTECTION FAULT");
+    serial::write_string("GPF error code: ");
+    serial::write_hex(error_code);
+    serial::write_string("\n");
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
+extern "x86-interrupt" fn stack_segment_fault_handler(
+    _stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    vga::println("EXCEPTION: STACK SEGMENT FAULT");
+    serial::write_string("SSF error code: ");
+    serial::write_hex(error_code);
+    serial::write_string("\n");
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
+extern "x86-interrupt" fn segment_not_present_handler(
+    _stack_frame: InterruptStackFrame,
+    error_code: u64,
+) {
+    vga::println("EXCEPTION: SEGMENT NOT PRESENT");
+    serial::write_string("SNP error code: ");
+    serial::write_hex(error_code);
+    serial::write_string("\n");
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {

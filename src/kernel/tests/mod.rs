@@ -1,5 +1,6 @@
 pub mod test_allocator;
 pub mod test_block;
+pub mod test_block_dev;
 pub mod test_panic;
 pub mod test_pmm;
 pub mod test_syscall;
@@ -130,6 +131,14 @@ pub fn run_tests() {
     test_vfs::test_vfs_mount_unmount();
     test_vfs::test_vfs_walk_path();
     serial::write_string("=== VFS Core: OK ===\n");
+
+    // =========================
+    // Block Device Mounting Tests
+    // =========================
+    serial::write_string("\n=== Block Device Mounting Tests ===\n");
+    test_block_dev::test_block_dev_mounting();
+    test_block_dev::test_block_dev_read();
+    serial::write_string("=== Block Device Mounting: OK ===\n");
 
     // =========================
     // Initramfs Tests
