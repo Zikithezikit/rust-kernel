@@ -25,12 +25,6 @@ pub fn test_fork_user() {
         }
     };
 
-    serial::write_string("Allocated phys pages: ");
-    serial::write_hex(code_phys as u64);
-    serial::write_string(", ");
-    serial::write_hex(stack_phys as u64);
-    serial::write_string("\n");
-
     let user_code_virt = 0x1_0000_0000u64; // 4GB
     let user_stack_virt = 0x1_1000_0000u64; // 4.25GB
 
@@ -92,11 +86,11 @@ pub fn test_fork_user() {
     serial::write_string("Jumping to user mode for fork test...\n");
 
     unsafe {
-        // We need a kernel stack for the child
-        let kernel_stack = PMM
-            .allocate_page()
-            .expect("Failed to allocate kernel stack");
-        crate::arch::x86::tss::set_kernel_stack(VirtAddr::new((kernel_stack + 4096) as u64));
+        // Use the current task's kernel stack for user mode transition
+        if let Some(task) = crate::kernel::scheduler::SCHEDULER.current_task() {
+            let stack_top = task.lock().kernel_stack_top;
+            crate::arch::x86::tss::set_kernel_stack(VirtAddr::new(stack_top as u64));
+        }
 
         x86_64::instructions::interrupts::disable();
         jump_to_user_mode(user_code_virt, user_stack_virt + 4096);

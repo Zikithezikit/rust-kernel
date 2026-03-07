@@ -52,6 +52,10 @@ pub enum IrqNumber {
     SecondaryATA,
 }
 
+extern "C" {
+    fn syscall_entry_asm();
+}
+
 pub fn init_idt() -> KernelResult<()> {
     let mut idt = InterruptDescriptorTable::new();
 
@@ -66,9 +70,13 @@ pub fn init_idt() -> KernelResult<()> {
     idt.page_fault.set_handler_fn(page_fault_handler);
     idt[IRQ_BASE_MASTER].set_handler_fn(timer_interrupt_handler);
     idt[IRQ_BASE_MASTER + 1].set_handler_fn(keyboard_interrupt_handler);
-    idt[SYSCALL_VECTOR]
-        .set_handler_fn(syscall_interrupt_handler)
-        .set_privilege_level(x86_64::PrivilegeLevel::Ring3);
+
+    // Use our assembly entry point for syscalls
+    unsafe {
+        idt[SYSCALL_VECTOR]
+            .set_handler_addr(x86_64::VirtAddr::new(syscall_entry_asm as *const () as u64))
+            .set_privilege_level(x86_64::PrivilegeLevel::Ring3);
+    }
 
     IDT.call_once(|| idt).load();
 
@@ -223,13 +231,14 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     }
 }
 
-extern "x86-interrupt" fn syscall_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use crate::ipc::syscall::handler::handle_syscall;
-
-    let result = unsafe { handle_syscall(&_stack_frame) };
+/// Rust entry point for system calls, called from assembly
+#[no_mangle]
+pub extern "C" fn handle_syscall_rust(regs: *mut crate::arch::x86::regs::PtRegs) {
+    use crate::ipc::syscall::handler::handle_syscall_with_regs;
 
     unsafe {
-        core::arch::asm!("mov rax, {}", in(reg) result);
+        let result = handle_syscall_with_regs(&mut *regs);
+        (*regs).rax = result as u64;
     }
 }
 

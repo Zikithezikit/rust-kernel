@@ -3,16 +3,14 @@
 //! Defines the system call numbers used for kernel-user communication.
 //! Follows Linux syscall numbering style (though actual numbers differ).
 
+use crate::arch::x86::regs::PtRegs;
 use core::fmt;
-
-use x86_64::structures::idt::InterruptStackFrame;
 
 /// System call return type
 pub type SyscallResult = isize;
 
 /// System call function signature
-pub type SyscallFn =
-    fn(&InterruptStackFrame, usize, usize, usize, usize, usize, usize) -> SyscallResult;
+pub type SyscallFn = fn(&mut PtRegs, usize, usize, usize, usize, usize, usize) -> SyscallResult;
 
 /// Maximum number of syscalls
 pub const NR_SYSCALLS: usize = 128;

@@ -90,21 +90,7 @@ pub unsafe fn map_page(
             tlb.flush();
             Ok(())
         }
-        Err(e) => {
-            crate::drivers::serial::write_string("map_to failed: ");
-            match e {
-                x86_64::structures::paging::mapper::MapToError::FrameAllocationFailed => {
-                    crate::drivers::serial::write_string("FrameAllocationFailed\n");
-                }
-                x86_64::structures::paging::mapper::MapToError::ParentEntryHugePage => {
-                    crate::drivers::serial::write_string("ParentEntryHugePage\n");
-                }
-                x86_64::structures::paging::mapper::MapToError::PageAlreadyMapped(_) => {
-                    crate::drivers::serial::write_string("PageAlreadyMapped\n");
-                }
-            }
-            Err("Failed to map page")
-        }
+        Err(_) => Err("Failed to map page"),
     }
 }
 

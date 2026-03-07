@@ -57,15 +57,15 @@ pub fn test_user_mode_transition() {
         core::ptr::copy_nonoverlapping(program.as_ptr(), code_ptr, program.len());
     }
 
-    // 6. Set the kernel stack in TSS so interrupts in user mode have a place to go
-    let kernel_stack = PMM
-        .allocate_page()
-        .expect("Failed to allocate kernel stack for user test");
-    crate::arch::x86::tss::set_kernel_stack(VirtAddr::new((kernel_stack + 4096) as u64));
-
     serial::write_string("Jumping to user mode... (Expect syscall 5)\n");
 
     unsafe {
+        // Use the current task's kernel stack for user mode transition
+        if let Some(task) = crate::kernel::scheduler::SCHEDULER.current_task() {
+            let stack_top = task.lock().kernel_stack_top;
+            crate::arch::x86::tss::set_kernel_stack(VirtAddr::new(stack_top as u64));
+        }
+
         // Disable interrupts before jump to ensure stability
         // (iretq will re-enable them because of rflags 0x202)
         x86_64::instructions::interrupts::disable();

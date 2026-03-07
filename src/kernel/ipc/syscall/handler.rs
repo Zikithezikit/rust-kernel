@@ -6,6 +6,7 @@
 //! - arguments in ebx/rdi, ecx/rsi, edx/rdx, esi/r10, edi/r8, ebp/r9
 //! - return value in eax/rax
 
+use crate::arch::x86::regs::PtRegs;
 use crate::drivers::serial;
 use crate::drivers::vga;
 use crate::kernel::id_allocator::TASK_ID_ALLOCATOR;
@@ -16,7 +17,6 @@ use alloc::format;
 use alloc::string::String;
 use alloc::sync::Arc;
 use spin::Mutex;
-use x86_64::structures::idt::InterruptStackFrame;
 
 pub use crate::ipc::syscall::numbers::{
     Errno, FileDescriptor, SyscallFn, SyscallNumber, SyscallResult, NR_SYSCALLS,
@@ -26,9 +26,9 @@ pub use crate::ipc::syscall::numbers::{
 const FORK_TIME_SLICE: usize = 10;
 
 /// Syscall table - maps syscall numbers to functions
-/// Similar to Linux's sys_call_table
 pub static SYSCALL_TABLE: [Option<SyscallFn>; NR_SYSCALLS] = {
     let mut table: [Option<SyscallFn>; NR_SYSCALLS] = [None; NR_SYSCALLS];
+
     table[SyscallNumber::SysExit as usize] = Some(sys_exit);
     table[SyscallNumber::SysWrite as usize] = Some(sys_write);
     table[SyscallNumber::SysRead as usize] = Some(sys_read);
@@ -60,45 +60,20 @@ pub fn get_ticks() -> u64 {
     unsafe { SYSTEM_TICKS }
 }
 
-/// Read syscall arguments from registers using inline asm
-macro_rules! get_syscall_args {
-    ($num:ident, $a1:ident, $a2:ident, $a3:ident, $a4:ident, $a5:ident, $a6:ident) => {
-        core::arch::asm!(
-            "mov {0}, rax",
-            "mov {1}, rdi",
-            "mov {2}, rsi",
-            "mov {3}, rdx",
-            "mov {4}, r10",
-            "mov {5}, r8",
-            "mov {6}, r9",
-            out(reg) $num,
-            out(reg) $a1,
-            out(reg) $a2,
-            out(reg) $a3,
-            out(reg) $a4,
-            out(reg) $a5,
-            out(reg) $a6,
-        );
-    }
-}
-
-/// System call handler
+/// System call handler with registers
 ///
-/// Called via int 0x80. Uses Linux x86-64 calling convention.
-pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult {
-    let syscall_num: usize;
-    let arg1: usize;
-    let arg2: usize;
-    let arg3: usize;
-    let arg4: usize;
-    let arg5: usize;
-    let arg6: usize;
-
-    get_syscall_args!(syscall_num, arg1, arg2, arg3, arg4, arg5, arg6);
+/// Called from arch/x86/interrupts.rs
+pub unsafe fn handle_syscall_with_regs(regs: &mut PtRegs) -> SyscallResult {
+    let syscall_num = regs.rax as usize;
+    let arg1 = regs.rdi as usize;
+    let arg2 = regs.rsi as usize;
+    let arg3 = regs.rdx as usize;
+    let arg4 = regs.r10 as usize;
+    let arg5 = regs.r8 as usize;
+    let arg6 = regs.r9 as usize;
 
     // Check if coming from user mode
-    let cs = stack_frame.code_segment;
-    if (cs.0 & 3) == 3 {
+    if (regs.cs & 3) == 3 {
         // Limited logging to avoid flooding
         if syscall_num != SyscallNumber::SysWrite as usize || get_ticks() % 100 == 0 {
             serial::write_string(&format!("USER syscall: {}\n", syscall_num));
@@ -114,7 +89,7 @@ pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult
 
     match syscall_fn {
         Some(fn_ptr) => {
-            let result: SyscallResult = fn_ptr(stack_frame, arg1, arg2, arg3, arg4, arg5, arg6);
+            let result: SyscallResult = fn_ptr(regs, arg1, arg2, arg3, arg4, arg5, arg6);
             result
         }
         None => {
@@ -130,7 +105,7 @@ pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult
 
 /// sys_exit - terminate current process
 fn sys_exit(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -156,7 +131,7 @@ fn sys_exit(
 
 /// sys_write - write to file descriptor
 fn sys_write(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     arg1: usize,
     arg2: usize,
     arg3: usize,
@@ -196,7 +171,7 @@ fn sys_write(
 
 /// sys_read - read from file descriptor
 fn sys_read(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -209,7 +184,7 @@ fn sys_read(
 
 /// sys_getpid - get current process ID
 fn sys_getpid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -226,7 +201,7 @@ fn sys_getpid(
 
 /// sys_getppid - get parent process ID
 fn sys_getppid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -244,7 +219,7 @@ fn sys_getppid(
 
 /// sys_fork - create a child process
 fn sys_fork(
-    _stack_frame: &InterruptStackFrame,
+    regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -253,9 +228,9 @@ fn sys_fork(
     _arg6: usize,
 ) -> SyscallResult {
     if let Some(parent_task_arc) = SCHEDULER.current_task() {
-        let (parent_id, parent_ip, parent_cr3, parent_stack_top) = {
+        let (parent_id, parent_cr3, parent_stack_top) = {
             let p = parent_task_arc.lock();
-            (p.id, p.instruction_pointer, p.cr3, p.kernel_stack_top)
+            (p.id, p.cr3, p.kernel_stack_top)
         };
 
         let new_id: usize = match TASK_ID_ALLOCATOR.alloc() {
@@ -286,59 +261,69 @@ fn sys_fork(
         };
 
         // 3. Copy kernel stack content
-        let current_rsp: usize;
-        unsafe {
-            core::arch::asm!("mov {}, rsp", out(reg) current_rsp);
-        }
-
-        let stack_used = parent_stack_top - current_rsp;
-        let mut child_rsp = child_stack_top - stack_used;
+        // In our assembly handler, regs points to the start of PtRegs on the stack
+        let regs_ptr = regs as *const PtRegs as usize;
+        let stack_used = parent_stack_top - regs_ptr;
+        let child_regs_ptr = child_stack_top - stack_used;
 
         unsafe {
             core::ptr::copy_nonoverlapping(
-                current_rsp as *const u8,
-                child_rsp as *mut u8,
+                regs_ptr as *const u8,
+                child_regs_ptr as *mut u8,
                 stack_used,
             );
         }
 
-        // 4. Adjust child stack for context_switch
-        // The scheduler will call context_switch(child_rsp), which expects
-        // 6 registers on the stack before the return address.
-        child_rsp -= 6 * 8;
+        // 4. Adjust child registers
+        let child_regs = unsafe { &mut *(child_regs_ptr as *mut PtRegs) };
+        child_regs.rax = 0; // Fork return value for child
 
-        // 5. Create child Task struct
+        // 5. Prepare child stack for context_switch
+        // Our context_switch pops 6 regs, then 'ret'
+        // We want 'ret' to jump to syscall_exit_asm
+        extern "C" {
+            fn syscall_exit_asm();
+        }
+
+        let mut child_rsp = child_regs_ptr;
+
+        // Push return address for context_switch
+        child_rsp -= 8;
+        unsafe {
+            *(child_rsp as *mut usize) = syscall_exit_asm as *const () as usize;
+        }
+
+        // Push 6 dummy registers for context_switch
+        for _ in 0..6 {
+            child_rsp -= 8;
+            unsafe {
+                *(child_rsp as *mut usize) = 0;
+            }
+        }
+
+        // 6. Create child Task struct
         let child = Arc::new(Mutex::new(Task {
             id: new_id,
             parent_id,
             state: TaskState::Ready,
-            kernel_stack: child_rsp, // Child starts here in context_switch
+            kernel_stack: child_rsp,
             kernel_stack_top: child_stack_top,
             stack_size: KERNEL_STACK_SIZE,
             cr3: child_cr3_phys.as_u64() as usize,
-            instruction_pointer: parent_ip,
+            instruction_pointer: child_regs.rip as usize,
             time_slice: FORK_TIME_SLICE,
             time_slice_max: FORK_TIME_SLICE,
             ticks_run: 0,
             name: "forked",
         }));
 
-        // 6. Add child to scheduler
+        // 7. Add child to scheduler
         SCHEDULER.add_task(child);
 
         serial::write_string(&format!(
             "sys_fork: parent={}, child={}\n",
             parent_id, new_id
         ));
-
-        // 7. Return child PID to parent, and 0 to child
-        // When the child is context-switched, it will return to this exact point
-        // but its current_task() will be the child task.
-        if let Some(current) = SCHEDULER.current_task() {
-            if current.lock().id == new_id {
-                return 0; // Child returns 0
-            }
-        }
 
         new_id as SyscallResult // Parent returns child PID
     } else {
@@ -348,7 +333,7 @@ fn sys_fork(
 
 /// sys_execve - replace current process with new program
 fn sys_execve(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -362,7 +347,7 @@ fn sys_execve(
 
 /// sys_open - open a file (stub - returns error)
 fn sys_open(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -376,7 +361,7 @@ fn sys_open(
 
 /// sys_close - close a file descriptor (stub - returns success)
 fn sys_close(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -389,7 +374,7 @@ fn sys_close(
 
 /// sys_getuid - get current user ID
 fn sys_getuid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -402,7 +387,7 @@ fn sys_getuid(
 
 /// sys_getgid - get current group ID
 fn sys_getgid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -415,7 +400,7 @@ fn sys_getgid(
 
 /// sys_setuid - set user ID (stub - returns success)
 fn sys_setuid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -428,7 +413,7 @@ fn sys_setuid(
 
 /// sys_setgid - set group ID (stub - returns success)
 fn sys_setgid(
-    _stack_frame: &InterruptStackFrame,
+    _regs: &mut PtRegs,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,

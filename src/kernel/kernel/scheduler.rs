@@ -67,9 +67,6 @@ impl Scheduler {
     pub fn add_task(&self, task: Arc<Mutex<Task>>) {
         x86_64::instructions::interrupts::without_interrupts(|| {
             let mut t = task.lock();
-            crate::drivers::serial::write_string("Adding task: ");
-            crate::drivers::serial::write_string(t.name);
-            crate::drivers::serial::write_string("\n");
             t.set_ready();
             drop(t);
 
@@ -184,10 +181,6 @@ impl Scheduler {
             if let Some(next_task) = self.schedule() {
                 unsafe {
                     let task_ref = next_task.lock();
-                    crate::drivers::serial::write_string("Switching to task: ");
-                    crate::drivers::serial::write_string(task_ref.name);
-                    crate::drivers::serial::write_string("\n");
-
                     current_task_ptr = &*task_ref as *const Task as usize;
                     let rsp = task_ref.kernel_stack;
                     drop(task_ref);
