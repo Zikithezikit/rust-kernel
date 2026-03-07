@@ -5,11 +5,14 @@
 
 use core::fmt;
 
+use x86_64::structures::idt::InterruptStackFrame;
+
 /// System call return type
 pub type SyscallResult = isize;
 
 /// System call function signature
-pub type SyscallFn = fn(usize, usize, usize, usize, usize, usize) -> SyscallResult;
+pub type SyscallFn =
+    fn(&InterruptStackFrame, usize, usize, usize, usize, usize, usize) -> SyscallResult;
 
 /// Maximum number of syscalls
 pub const NR_SYSCALLS: usize = 128;

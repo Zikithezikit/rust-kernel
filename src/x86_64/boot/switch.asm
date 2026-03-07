@@ -19,7 +19,6 @@ bits 64
 ; Output: Returns to caller with new task's context
 context_switch:
     ; Save all general purpose registers (callee-saved: rbx, rbp, r12-r15)
-    ; We don't need to save rdi/rsi/rsp because they're handled explicitly
     
     push rbp
     push rbx
@@ -29,19 +28,12 @@ context_switch:
     push r15
     
     ; Save current RSP to current task's kernel_stack field
-    ; current_task_ptr points to Arc<Mutex<Task>>
+    ; current_task_ptr now points directly to the Task struct
     mov rax, [rel current_task_ptr]
     test rax, rax
     jz .no_current_task
     
-    ; Get the Task struct from the Arc (offset to Mutex data)
-    ; Arc layout: strong_count(8) + weak_count(8) + data = 16 bytes header
-    mov rbx, rax                    ; save current_task_ptr
-    mov rax, [rax]                 ; dereference to get inner pointer (Mutex<Task>)
-    add rax, 16                    ; skip Arc header, point to Task data
-    
-    ; Store RSP at offset of kernel_stack field in Task struct
-    ; kernel_stack is at offset 24 (after id, state)
+    ; kernel_stack is at offset 24 in Task struct (#[repr(C)])
     mov [rax + 24], rsp
     
 .no_current_task:

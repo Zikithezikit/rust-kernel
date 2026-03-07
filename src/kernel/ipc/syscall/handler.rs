@@ -114,7 +114,7 @@ pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult
 
     match syscall_fn {
         Some(fn_ptr) => {
-            let result: SyscallResult = fn_ptr(arg1, arg2, arg3, arg4, arg5, arg6);
+            let result: SyscallResult = fn_ptr(stack_frame, arg1, arg2, arg3, arg4, arg5, arg6);
             result
         }
         None => {
@@ -130,6 +130,7 @@ pub unsafe fn handle_syscall(stack_frame: &InterruptStackFrame) -> SyscallResult
 
 /// sys_exit - terminate current process
 fn sys_exit(
+    _stack_frame: &InterruptStackFrame,
     arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -155,6 +156,7 @@ fn sys_exit(
 
 /// sys_write - write to file descriptor
 fn sys_write(
+    _stack_frame: &InterruptStackFrame,
     arg1: usize,
     arg2: usize,
     arg3: usize,
@@ -194,6 +196,7 @@ fn sys_write(
 
 /// sys_read - read from file descriptor
 fn sys_read(
+    _stack_frame: &InterruptStackFrame,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -206,6 +209,7 @@ fn sys_read(
 
 /// sys_getpid - get current process ID
 fn sys_getpid(
+    _stack_frame: &InterruptStackFrame,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -220,132 +224,9 @@ fn sys_getpid(
     }
 }
 
-/// sys_getuid - get current user ID
-fn sys_getuid(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    Errno::Ok.as_isize()
-}
-
-/// sys_getgid - get current group ID
-fn sys_getgid(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    Errno::Ok.as_isize()
-}
-
-/// sys_fork - create a child process
-fn sys_fork(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    if let Some(current) = SCHEDULER.current_task() {
-        let parent_id: usize = current.lock().id;
-        let parent_ip: usize = current.lock().instruction_pointer;
-
-        let new_id: usize = match TASK_ID_ALLOCATOR.alloc() {
-            Some(id) => id,
-            None => return Errno::EAGAIN.as_isize(),
-        };
-
-        let stack: usize = {
-            use crate::mm::pmm::PMM;
-            let pages_needed: usize = KERNEL_STACK_SIZE / crate::mm::pmm::PAGE_SIZE;
-            match PMM.allocate_pages(pages_needed) {
-                Some(addr) => addr + KERNEL_STACK_SIZE,
-                None => {
-                    unsafe {
-                        TASK_ID_ALLOCATOR.free(new_id);
-                    }
-                    return Errno::EAGAIN.as_isize();
-                }
-            }
-        };
-
-        let child_cr3 = current.lock().cr3;
-
-        let child = Arc::new(Mutex::new(Task {
-            id: new_id,
-            parent_id,
-            state: TaskState::Ready,
-            kernel_stack: stack,
-            kernel_stack_top: stack,
-            stack_size: KERNEL_STACK_SIZE,
-            cr3: child_cr3,
-            instruction_pointer: parent_ip,
-            time_slice: FORK_TIME_SLICE,
-            time_slice_max: FORK_TIME_SLICE,
-            ticks_run: 0,
-            name: "forked",
-        }));
-
-        SCHEDULER.add_task(child);
-
-        serial::write_string(&format!(
-            "sys_fork: parent={}, child={}\n",
-            parent_id, new_id
-        ));
-
-        new_id as SyscallResult
-    } else {
-        Errno::ENOMEM.as_isize()
-    }
-}
-
-/// sys_execve - replace current process with new program
-fn sys_execve(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    serial::write_string("sys_execve: not fully implemented\n");
-    Errno::ENOSYS.as_isize()
-}
-
-/// sys_open - open a file (stub - returns error)
-fn sys_open(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    serial::write_string("sys_open: not implemented\n");
-    Errno::ENOSYS.as_isize()
-}
-
-/// sys_close - close a file descriptor (stub - returns success)
-fn sys_close(
-    _arg1: usize,
-    _arg2: usize,
-    _arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
-) -> SyscallResult {
-    Errno::Ok.as_isize()
-}
-
 /// sys_getppid - get parent process ID
 fn sys_getppid(
+    _stack_frame: &InterruptStackFrame,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -361,8 +242,180 @@ fn sys_getppid(
     }
 }
 
+/// sys_fork - create a child process
+fn sys_fork(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    if let Some(parent_task_arc) = SCHEDULER.current_task() {
+        let (parent_id, parent_ip, parent_cr3, parent_stack_top) = {
+            let p = parent_task_arc.lock();
+            (p.id, p.instruction_pointer, p.cr3, p.kernel_stack_top)
+        };
+
+        let new_id: usize = match TASK_ID_ALLOCATOR.alloc() {
+            Some(id) => id,
+            None => return Errno::EAGAIN.as_isize(),
+        };
+
+        // 1. Clone address space
+        use crate::mm::page_tables::copy_address_space;
+        use x86_64::PhysAddr;
+
+        let child_cr3_phys = unsafe { copy_address_space(PhysAddr::new(parent_cr3 as u64)) }
+            .expect("Failed to clone address space");
+
+        // 2. Allocate new kernel stack
+        let child_stack_top: usize = {
+            use crate::mm::pmm::PMM;
+            let pages_needed: usize = KERNEL_STACK_SIZE / crate::mm::pmm::PAGE_SIZE;
+            match PMM.allocate_pages(pages_needed) {
+                Some(addr) => addr + KERNEL_STACK_SIZE,
+                None => {
+                    unsafe {
+                        TASK_ID_ALLOCATOR.free(new_id);
+                    }
+                    return Errno::EAGAIN.as_isize();
+                }
+            }
+        };
+
+        // 3. Copy kernel stack content
+        let current_rsp: usize;
+        unsafe {
+            core::arch::asm!("mov {}, rsp", out(reg) current_rsp);
+        }
+
+        let stack_used = parent_stack_top - current_rsp;
+        let mut child_rsp = child_stack_top - stack_used;
+
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                current_rsp as *const u8,
+                child_rsp as *mut u8,
+                stack_used,
+            );
+        }
+
+        // 4. Adjust child stack for context_switch
+        // The scheduler will call context_switch(child_rsp), which expects
+        // 6 registers on the stack before the return address.
+        child_rsp -= 6 * 8;
+
+        // 5. Create child Task struct
+        let child = Arc::new(Mutex::new(Task {
+            id: new_id,
+            parent_id,
+            state: TaskState::Ready,
+            kernel_stack: child_rsp, // Child starts here in context_switch
+            kernel_stack_top: child_stack_top,
+            stack_size: KERNEL_STACK_SIZE,
+            cr3: child_cr3_phys.as_u64() as usize,
+            instruction_pointer: parent_ip,
+            time_slice: FORK_TIME_SLICE,
+            time_slice_max: FORK_TIME_SLICE,
+            ticks_run: 0,
+            name: "forked",
+        }));
+
+        // 6. Add child to scheduler
+        SCHEDULER.add_task(child);
+
+        serial::write_string(&format!(
+            "sys_fork: parent={}, child={}\n",
+            parent_id, new_id
+        ));
+
+        // 7. Return child PID to parent, and 0 to child
+        // When the child is context-switched, it will return to this exact point
+        // but its current_task() will be the child task.
+        if let Some(current) = SCHEDULER.current_task() {
+            if current.lock().id == new_id {
+                return 0; // Child returns 0
+            }
+        }
+
+        new_id as SyscallResult // Parent returns child PID
+    } else {
+        Errno::ENOMEM.as_isize()
+    }
+}
+
+/// sys_execve - replace current process with new program
+fn sys_execve(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    serial::write_string("sys_execve: not fully implemented\n");
+    Errno::ENOSYS.as_isize()
+}
+
+/// sys_open - open a file (stub - returns error)
+fn sys_open(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    serial::write_string("sys_open: not implemented\n");
+    Errno::ENOSYS.as_isize()
+}
+
+/// sys_close - close a file descriptor (stub - returns success)
+fn sys_close(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    Errno::Ok.as_isize()
+}
+
+/// sys_getuid - get current user ID
+fn sys_getuid(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    Errno::Ok.as_isize()
+}
+
+/// sys_getgid - get current group ID
+fn sys_getgid(
+    _stack_frame: &InterruptStackFrame,
+    _arg1: usize,
+    _arg2: usize,
+    _arg3: usize,
+    _arg4: usize,
+    _arg5: usize,
+    _arg6: usize,
+) -> SyscallResult {
+    Errno::Ok.as_isize()
+}
+
 /// sys_setuid - set user ID (stub - returns success)
 fn sys_setuid(
+    _stack_frame: &InterruptStackFrame,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,
@@ -375,6 +428,7 @@ fn sys_setuid(
 
 /// sys_setgid - set group ID (stub - returns success)
 fn sys_setgid(
+    _stack_frame: &InterruptStackFrame,
     _arg1: usize,
     _arg2: usize,
     _arg3: usize,

@@ -89,9 +89,19 @@ setup_page_tables:
     or eax, 0b11 ; present + writeable
     mov [page_table_l4], eax
 
+    ; Connect 4 L2 tables to L3 to map 4GB
     mov eax, page_table_l2
-    or eax, 0b11 ; present + writeable
+    or eax, 0b11
     mov [page_table_l3], eax
+    
+    add eax, 4096
+    mov [page_table_l3 + 8], eax
+    
+    add eax, 4096
+    mov [page_table_l3 + 16], eax
+    
+    add eax, 4096
+    mov [page_table_l3 + 24], eax
 
     ; L2 → memory (2 MiB huge pages)
     mov ecx, 0
@@ -102,7 +112,7 @@ setup_page_tables:
     mov [page_table_l2 + ecx * 8], eax
 
     inc ecx ; increment counter
-    cmp ecx, 512 ; checks if the whole table is mapped
+    cmp ecx, 2048 ; Map 4GB (2048 * 2MB)
     jne .loop ; if not continue.
 
     ret
@@ -146,7 +156,7 @@ page_table_l4:
 page_table_l3:
     resb 4096
 page_table_l2:
-    resb 4096
+    resb 4096 * 4 ; Reserve space for 4 L2 tables to map 4GB
 stack_bottom:
     resb 4096 * 4
 stack_top:

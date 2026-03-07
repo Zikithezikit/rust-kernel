@@ -47,8 +47,8 @@ const MAX_PHYSICAL_PAGES: usize = 0x100000;
 const MAX_BITMAP_PAGES: usize = 64;
 /// Kernel load address (1MB)
 const KERNEL_START: usize = 0x100000;
-/// Kernel size to reserve (2MB)
-const KERNEL_SIZE: usize = 0x200000;
+/// Kernel size to reserve (15MB - to reach 16MB heap start)
+const KERNEL_SIZE: usize = 0xF00000;
 
 /// Multiboot2 parser module
 ///
@@ -346,6 +346,7 @@ impl PhysicalMemoryManager {
         let bitmap_ptr = crate::memory::globals::PMM_BITMAP.as_mut_ptr();
 
         // Initialize bitmap to zeros (all pages free initially)
+        // bitmap_pages is the number of 4KB pages used to STORE the bitmap
         bitmap_ptr.write_bytes(0, bitmap_pages * PAGE_SIZE);
 
         // Configure PMM
@@ -359,10 +360,8 @@ impl PhysicalMemoryManager {
             .reserved_pages
             .store(bitmap_pages, Ordering::SeqCst);
 
-        // Mark all pages as free
-        for i in 0..total_pages {
-            pmm_self.mark_page_free(i);
-        }
+        // Mark all pages as free - REMOVED redundant slow loop
+        // (they were already zeroed by write_bytes)
 
         // Reserve bitmap storage pages
         for i in 0..bitmap_pages {

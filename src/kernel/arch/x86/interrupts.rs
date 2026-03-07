@@ -3,6 +3,7 @@
 use crate::drivers::serial;
 use crate::drivers::vga;
 use crate::include::error::{KernelError, KernelResult};
+use crate::kernel::scheduler::SCHEDULER;
 use crate::mm::vmm;
 
 use pc_keyboard::{layouts::Us104Key, HandleControl, Keyboard, ScancodeSet1};
@@ -189,11 +190,13 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
     increment_ticks();
 
-    // TODO: Enable preemptive scheduling once context switching is properly implemented
-    // For now, just increment ticks without switching
-    // SCHEDULER.preemptive_tick();
-
+    // Signal EOI before potential task switch
     pic_end_of_interrupt(IrqNumber::SystemTimer as u8);
+
+    // Enable preemptive scheduling only if requested
+    if crate::kernel::scheduler::is_preemption_enabled() {
+        SCHEDULER.preemptive_tick();
+    }
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {

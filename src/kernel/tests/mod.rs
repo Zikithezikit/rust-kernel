@@ -1,6 +1,7 @@
 pub mod test_allocator;
 pub mod test_block;
 pub mod test_block_dev;
+pub mod test_fork;
 pub mod test_panic;
 pub mod test_pmm;
 pub mod test_syscall;
@@ -11,6 +12,7 @@ pub mod test_vfs;
 pub mod test_vmm;
 
 use crate::drivers::serial;
+use crate::kernel::scheduler::SCHEDULER;
 
 /// Runs all kernel tests.
 ///
@@ -169,11 +171,21 @@ pub fn run_tests() {
     serial::write_string("=== Tmpfs: OK ===\n");
 
     // =========================
-    // User Mode Tests (DANGEROUS - NEVER RETURNS)
+    // User Mode Tests (Scheduled)
     // =========================
     serial::write_string("\n=== User Mode Tests ===\n");
-    test_userspace::test_user_mode_transition();
+    // Clear run queue to make test_fork the first task
+    SCHEDULER.reset();
+    SCHEDULER.spawn(test_fork_user_task, "test_fork");
+    serial::write_string("Fork test task spawned.\n");
 
     serial::write_string("All tests completed!\n");
     serial::write_string("=== Tests completed ===\n");
+}
+
+fn test_fork_user_task() {
+    test_fork::test_fork_user();
+    loop {
+        x86_64::instructions::hlt();
+    }
 }

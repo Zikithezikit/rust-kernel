@@ -75,6 +75,9 @@ pub extern "C" fn kernel_main(multiboot_info: usize) -> ! {
     // Run tests to check if heap fix resolved boot loop
     tests::run_tests();
 
+    // Enable preemption after core tests are finished
+    crate::kernel::scheduler::set_preemption_enabled(true);
+
     // Run the scheduler - this is the main kernel loop
     serial::write_string("Starting scheduler...\n");
     kernel_instance::kernel().scheduler_mut().run();
